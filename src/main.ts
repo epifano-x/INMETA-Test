@@ -1,20 +1,23 @@
+import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
-  // Versão inicial sem auth — só pra documentação e ping
-  const config = new DocumentBuilder()
-    .setTitle('INMETA – Employees Docs API')
-    .setDescription('API to manage mandatory employee documentation (v1 raw).')
-    .setVersion('0.1.0')
-    .build();
+  if (process.env.SWAGGER_ENABLED === 'true') {
+    const config = new DocumentBuilder()
+      .setTitle('INMETA Docs API')
+      .setDescription('Dev API — documentation & health only')
+      .setVersion('0.1.0')
+      .build();
+    const doc = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('docs', app, doc);
+  }
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('docs', app, document);
-
-  await app.listen(process.env.PORT || 3000);
+  const port = process.env.PORT || 3000;
+  await app.listen(port, '0.0.0.0');
 }
 bootstrap();
