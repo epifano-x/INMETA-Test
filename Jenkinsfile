@@ -18,17 +18,22 @@ pipeline {
     }
 
     stage('Write .env.dev from credentials') {
-      steps {
-        // Troque o ID se o seu secret tiver outro nome. Pelo log, é "ENV_DEV".
-        withCredentials([string(credentialsId: 'ENV_DEV', variable: 'ENV_DEV')]) {
-          sh '''
-            echo "[jenkins] writing .env.dev"
-            printf "%s" "$ENV_DEV" > .env.dev
-            test -s .env.dev
-          '''
+        steps {
+            withCredentials([string(credentialsId: 'inmeta-dev-env', variable: 'ENV_DEV')]) {
+            sh '''
+                echo "[jenkins] writing .env.dev"
+                # grava preservando quebras de linha e sem expandir nada
+                cat > .env.dev <<'EOF'
+        $ENV_DEV
+        EOF
+                # sanity check
+                echo "[jenkins] .env.dev size: $(wc -c < .env.dev) bytes"
+                test -s .env.dev
+            '''
+            }
         }
-      }
     }
+
 
     stage('Docker build') {
       steps {
