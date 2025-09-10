@@ -8,7 +8,6 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3000
-      # Coloque aqui somente variáveis não sensíveis de DEV. O resto vai em .env.dev (não commitado).
     env_file:
       - .env.dev
     networks:
@@ -16,13 +15,9 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=web"
-
-      # HTTP -> HTTPS
       - "traefik.http.routers.api-dev-http.rule=Host(`dev.inmeta.dynax.com.br`)"
       - "traefik.http.routers.api-dev-http.entrypoints=web"
       - "traefik.http.routers.api-dev-http.middlewares=redirect-to-https@file"
-
-      # HTTPS
       - "traefik.http.routers.api-dev-https.rule=Host(`dev.inmeta.dynax.com.br`)"
       - "traefik.http.routers.api-dev-https.entrypoints=websecure"
       - "traefik.http.routers.api-dev-https.tls=true"
