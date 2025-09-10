@@ -1,254 +1,98 @@
-# INMETA Test – Backend (Node.js + TypeScript)
+<p align="center">
+  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
+</p>
 
-_Read this in other languages: **[Português (Brasil)](README.pt-BR.md)**_
+[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
+[circleci-url]: https://circleci.com/gh/nestjs/nest
 
-API for managing employee mandatory documentation. Built for real-world deploys with NestJS, PostgreSQL, Keycloak (AuthN/AuthZ), Elasticsearch + Kibana (logs/observability), and Swagger (docs).
+  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
+    <p align="center">
+<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
+<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
+<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
+<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
+<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
+<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
+<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
+  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
+    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
+  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
+</p>
+  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
+  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
 
-Note: No secrets in Git. Use `.env` files locally and CI/CD secrets in pipelines. See Environment below.
+## Description
 
----
+[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
-## Table of Contents
-- [Overview](#overview)
-- [Architecture](#architecture)
-- [Tech Stack](#tech-stack)
-- [Domain Model](#domain-model)
-- [Environment](#environment)
-- [Local Development](#local-development)
-- [Database (Postgres)](#database-postgres)
-- [Security (Keycloak)](#security-keycloak)
-- [Logs & Observability (Elasticsearch/Kibana)](#logs--observability-elasticsearchkibana)
-- [API Docs (Swagger)](#api-docs-swagger)
-- [Run with Docker](#run-with-docker)
-- [Testing](#testing)
-- [Production notes](#production-notes)
-- [License](#license)
-
----
-
-## Overview
-
-This service exposes a REST API to:
-- Create/update employees
-- Create document types
-- Link/unlink document types to employees (bulk supported)
-- Submit employee documents (metadata representation only; no file upload required)
-- Get an employee’s documentation status (sent vs pending)
-- List all pending documents with pagination + optional filters (employee / document type)
-
-## Architecture
-
-```
-apps/api
- ├─ src
- │   ├─ main.ts                 # bootstrap + global pipes/filters + logging
- │   ├─ app.module.ts
- │   ├─ modules/
- │   │   ├─ employees/
- │   │   ├─ document-types/
- │   │   ├─ documents/
- │   │   └─ health/
- │   ├─ common/
- │   │   ├─ auth/ (Keycloak guards, roles, scopes)
- │   │   ├─ logging/ (pino + transport to Elasticsearch)
- │   │   └─ dto/
- │   └─ infra/
- │       ├─ prisma/ (schema + migrations)
- │       └─ config/
- ├─ prisma/ (schema.prisma, migrations)
- └─ test/
-```
-
-- Framework: NestJS (Express adapter) + Class-Validator
-- Auth: Keycloak (OpenID Connect); Bearer JWT on all protected routes
-- DB: PostgreSQL via Prisma
-- Logs: Pino → Elasticsearch (indexed), view in Kibana
-- Docs: Swagger at `/docs`
-- Packaging: Docker; reverse-proxy via Traefik (provided in infra stack)
-
-## Tech Stack
-
-- Node.js 20 / TypeScript
-- NestJS
-- Prisma ORM (PostgreSQL)
-- Keycloak (OIDC)
-- Pino + pino-elasticsearch (logs) / alternatively Elastic APM
-- Swagger (OpenAPI 3)
-- Docker / docker-compose
-- Traefik for TLS and routing
-
-## Domain Model
-
-Suggested entities (you may extend/rename as needed):
-
-- Employee
-  - id, name, cpf, hiredAt
-- DocumentType
-  - id, name
-- Document
-  - id, name, status (PENDING | SENT)
-  - employeeId, documentTypeId
-  - submittedAt
-
-Business rules:
-- Link/unlink multiple document types at once to an employee
-- Submitting a document moves its status to SENT
-- Status endpoint returns both sent and pending per employee
-- Pending list is pageable and filterable
-
-## Environment
-
-Create your own `.env` based on the template below and never commit secrets. Keep `.env` ignored by Git.
-
-`.env.example` (placeholders only)
-```dotenv
-# Runtime
-NODE_ENV=development
-PORT=3000
-
-# Postgres
-DB_HOST=postgres-dev
-DB_PORT=5432
-DB_NAME=inmeta_docs
-DB_USER=__FILL_ME__
-DB_PASSWORD=__FILL_ME__
-
-# Keycloak (Auth)
-KEYCLOAK_URL=https://keycloak.dynax.com.br
-KEYCLOAK_REALM=inmeta
-KEYCLOAK_CLIENT_ID=api-docs
-KEYCLOAK_CLIENT_SECRET=__FILL_ME__
-
-# Elasticsearch (Logs)
-ELASTIC_NODE=http://elasticsearch-dev:9200
-ELASTIC_USERNAME=__FILL_ME__
-ELASTIC_PASSWORD=__FILL_ME__
-ELASTIC_INDEX_PREFIX=api-docs
-
-# Swagger
-SWAGGER_ENABLED=true
-SWAGGER_TITLE=INMETA Docs API
-SWAGGER_PATH=/docs
-```
-
-Add to `.gitignore`:
-```
-.env
-.env.*
-!.env.example
-```
-
-## Local Development
+## Project setup
 
 ```bash
-# 1) Install deps
-npm ci
-
-# 2) Generate Prisma client
-npx prisma generate
-
-# 3) Create DB schema
-npx prisma migrate dev --name init
-
-# 4) Run
-npm run start:dev
+$ npm install
 ```
 
-Health:
-```
-GET http://localhost:3000/health
-```
-
-## Database (Postgres)
-
-- The project expects a Postgres reachable via the variables in `.env`.
-- For your existing containerized Postgres (DEV), just create a new database:
-  ```sql
-  CREATE DATABASE inmeta_docs WITH ENCODING 'UTF8';
-  ```
-- Apply Prisma migrations:
-  ```bash
-  npx prisma migrate dev
-  ```
-- Explore schema:
-  ```bash
-  npx prisma studio
-  ```
-
-## Security (Keycloak)
-
-The API uses Bearer tokens from Keycloak.
-
-Obtain a token (Password flow example):
-```bash
-curl -X POST "$KEYCLOAK_URL/realms/$KEYCLOAK_REALM/protocol/openid-connect/token"   -H "Content-Type: application/x-www-form-urlencoded"   -d "grant_type=password&client_id=$KEYCLOAK_CLIENT_ID&client_secret=$KEYCLOAK_CLIENT_SECRET&username=<user>&password=<pass>"
-```
-
-Send requests with the token:
-```bash
-curl -H "Authorization: Bearer <access_token>" http://localhost:3000/employees
-```
-
-Configure role checks (scopes) per route using Nest guards and Keycloak realm/client roles.
-
-## Logs & Observability (Elasticsearch/Kibana)
-
-- Logs are shipped via pino with an elasticsearch transport.
-- Configure via ELASTIC_* env vars.
-- In Kibana (DEV): https://dev.kibana.dynax.com.br
-  In Kibana (PROD): https://kibana.dynax.com.br
-- Suggested index pattern: ${ELASTIC_INDEX_PREFIX}-*
-
-Tip: add request ID correlation and include user/realm claims into log context.
-
-## API Docs (Swagger)
-
-- Swagger UI enabled when SWAGGER_ENABLED=true
-- Default path: http://localhost:3000/docs (proxied publicly by Traefik in DEV)
-- OpenAPI JSON: /docs-json
-
-## Run with Docker
-
-Example minimal compose for the API (DEV) assuming you already run Traefik/Keycloak/Elastic separately:
-
-```yaml
-version: "3.9"
-services:
-  api-dev:
-    build: .
-    env_file:
-      - .env
-    ports:
-      - "3000:3000"
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.api-dev.rule=Host(`api.dev.dynax.com.br`)"
-      - "traefik.http.routers.api-dev.entrypoints=websecure"
-      - "traefik.http.routers.api-dev.tls=true"
-      - "traefik.http.services.api-dev.loadbalancer.server.port=3000"
-    networks:
-      - web
-networks:
-  web:
-    external: true
-```
-
-## Testing
+## Compile and run the project
 
 ```bash
-npm run test
-npm run test:e2e
-npm run lint
+# development
+$ npm run start
+
+# watch mode
+$ npm run start:dev
+
+# production mode
+$ npm run start:prod
 ```
 
-## Production notes
+## Run tests
 
-- Use distinct realms/clients/secrets in Keycloak; least-privilege roles.
-- Send logs to a PROD Elasticsearch with a distinct index prefix.
-- Rotate secrets regularly; use a secret manager (Vault/AWS/GCP/etc.).
-- Use health/readiness probes behind Traefik.
-- Enable Prisma connection pooling (e.g., pgbouncer) for scale.
+```bash
+# unit tests
+$ npm run test
+
+# e2e tests
+$ npm run test:e2e
+
+# test coverage
+$ npm run test:cov
+```
+
+## Deployment
+
+When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+
+If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+
+```bash
+$ npm install -g @nestjs/mau
+$ mau deploy
+```
+
+With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+
+## Resources
+
+Check out a few resources that may come in handy when working with NestJS:
+
+- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
+- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
+- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
+- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
+- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
+- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
+- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
+- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+
+## Support
+
+Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+
+## Stay in touch
+
+- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
+- Website - [https://nestjs.com](https://nestjs.com/)
+- Twitter - [@nestframework](https://twitter.com/nestframework)
 
 ## License
 
-MIT
+Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
