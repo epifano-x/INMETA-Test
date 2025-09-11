@@ -16,13 +16,15 @@ export class HealthController {
 
   @Get('elasticsearch')
   @ApiOperation({ summary: 'Health do Elasticsearch' })
-  @ApiResponse({ status: 200, description: 'Info do cluster ou erro de conexão' })
+  @ApiResponse({ status: 200, description: 'Elasticsearch OK' })
+  @ApiResponse({ status: 503, description: 'Elasticsearch indisponível' })
   async elasticsearch() {
     try {
       const info = await this.es.info();
       return { ok: true, name: info.name, cluster_name: info.cluster_name, version: info.version };
     } catch (err: any) {
-      return { ok: false, error: err?.message ?? String(err) };
+      // agora volta 503 em vez de 200
+      throw new ServiceUnavailableException(err?.message ?? String(err));
     }
   }
 }
