@@ -18,7 +18,6 @@ async function bootstrap() {
       .setVersion('0.0.1')
       // informa ao Swagger que a API tem basePath /api
       .addServer('/')       // navegação no browser
-      .addServer('/api')    // chamadas com prefixo
       .build();
 
     const document = SwaggerModule.createDocument(app, config);
