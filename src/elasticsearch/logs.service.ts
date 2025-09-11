@@ -57,19 +57,17 @@ export class LogsService {
     }
   }
 
-  async log(doc: Record<string, any>) {
-    try {
-      await this.es.index({
-        index: this.dailyIndex(),
-        document: {
-          ts: new Date().toISOString(),
-          service: 'INMETA',
-          env: process.env.NODE_ENV ?? 'development',
-          ...doc,
-        },
-      });
-    } catch (e) {
-      this.logger.error('Failed to index log to Elasticsearch', e as any);
+    async log(index: string, level: string, message: string) {
+        try {
+            await this.es.index({
+                index: this.dailyIndex(index),
+                refresh: false,
+                document: { ts: new Date().toISOString(), level, message },
+            });
+        } catch (e) {
+            // não derruba a API se ES estiver fora
+            console.warn('[LogsService] falha ao indexar log:', (e as Error).message);
+        }
     }
-  }
+
 }
