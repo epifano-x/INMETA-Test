@@ -1,6 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { ElasticsearchService } from '@nestjs/elasticsearch';
-import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('health')
 @Controller('health')
@@ -8,20 +8,21 @@ export class HealthController {
   constructor(private readonly es: ElasticsearchService) {}
 
   @Get()
-  @ApiOkResponse({ description: 'API is healthy' })
-  getHealth() {
-    return { status: 'ok', ts: new Date().toISOString() };
+  @ApiOperation({ summary: 'Health check da API' })
+  @ApiResponse({ status: 200, description: 'OK' })
+  ok() {
+    return { ok: true };
   }
 
   @Get('elasticsearch')
-  @ApiOkResponse({ description: 'Elasticsearch connectivity' })
-  async elasticHealth() {
-    const info = await this.es.info();
-    return {
-      clusterName: info.cluster_name,
-      clusterUuid: info.cluster_uuid,
-      version: info.version?.number,
-      tagline: info.tagline,
-    };
+  @ApiOperation({ summary: 'Health do Elasticsearch' })
+  @ApiResponse({ status: 200, description: 'Info do cluster ou erro de conexão' })
+  async elasticsearch() {
+    try {
+      const info = await this.es.info();
+      return { ok: true, name: info.name, cluster_name: info.cluster_name, version: info.version };
+    } catch (err: any) {
+      return { ok: false, error: err?.message ?? String(err) };
+    }
   }
 }
