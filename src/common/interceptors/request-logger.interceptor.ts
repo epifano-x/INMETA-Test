@@ -12,8 +12,8 @@ export class RequestLoggerInterceptor implements NestInterceptor {
 
     return next.handle().pipe(
       tap({
-        next: () => this.logs.logHttp(req, Date.now() - started, 200),
-        error: (err) => this.logs.logHttp(req, Date.now() - started, err?.status ?? 500),
+        next: () => this.logs.logHttp?.(req, Date.now() - started, 200).catch(()=>{}),
+        error: (err) => this.logs.logHttp?.(req, Date.now() - started, err?.status ?? 500).catch(()=>{}),
       }),
     );
   }

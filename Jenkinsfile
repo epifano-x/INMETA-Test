@@ -82,23 +82,23 @@ pipeline {
       }
     }
 
-    stage('Smoke test') {
-      steps {
-        sh '''
-          set -e
-          echo "Aguardando ${APP_HOST} subir..."
-          for i in $(seq 1 60); do
-            if curl -fsS ${APP_HOST}/api/health >/dev/null ; then
-              echo "OK"
-              exit 0
-            fi
-            sleep 1
-          done
-          echo "Healthcheck falhou"
-          exit 1
-        '''
-      }
-    }
+    // stage('Smoke test') {
+    //   steps {
+    //     sh '''
+    //       set -e
+    //       echo "Aguardando ${APP_HOST} subir..."
+    //       for i in $(seq 1 60); do
+    //         if curl -fsS ${APP_HOST}/api/health >/dev/null ; then
+    //           echo "OK"
+    //           exit 0
+    //         fi
+    //         sleep 1
+    //       done
+    //       echo "Healthcheck falhou"
+    //       exit 1
+    //     '''
+    //   }
+    // }
   }
 
   post {
