@@ -22,7 +22,9 @@ async function bootstrap() {
       .addServer('/')
       .build();
     const doc = SwaggerModule.createDocument(app, config);
-    SwaggerModule.setup('docs', app, doc, { swaggerOptions: { persistAuthorization: true } });
+    SwaggerModule.setup('docs', app, doc, {
+      swaggerOptions: { persistAuthorization: true },
+    });
   }
 
   await app.listen(Number(process.env.PORT ?? 3000));
