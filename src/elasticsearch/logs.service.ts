@@ -5,26 +5,28 @@ import { ElasticsearchService } from '@nestjs/elasticsearch';
 @Injectable()
 export class LogsService {
   private readonly logger = new Logger(LogsService.name);
-  private readonly indexBase: string;
+  readonly indexBase: string;
 
   constructor(
     private readonly es: ElasticsearchService,
     private readonly cfg: ConfigService,
   ) {
-    this.indexBase = this.cfg.get<string>('ELASTICSEARCH_LOGS_INDEX') ?? 'logs-INMETA';
+    this.indexBase = (this.cfg.get('APP_NAME') ?? 'inmeta-docs-api').toLowerCase();
   }
 
-  private dailyIndex() {
-    const d = new Date().toISOString().slice(0, 10).replace(/-/g, '.'); // YYYY.MM.DD
-    return `${this.indexBase}-${d}`;
+  dailyIndex(base?: string) {
+    const y = new Date().getFullYear().toString().padStart(4, '0');
+    const m = (new Date().getMonth() + 1).toString().padStart(2, '0');
+    const d = new Date().getDate().toString().padStart(2, '0');
+    const prefix = base ?? this.indexBase;
+    return `${prefix}-${y}.${m}.${d}`;
   }
 
   async ensureTemplate() {
-    const templateName = `${this.indexBase}-template`;
-    const exists = await this.es.indices.existsIndexTemplate({ name: templateName }).catch(() => false);
-    if (!exists) {
+    try {
       await this.es.indices.putIndexTemplate({
-        name: templateName,
+        name: `logs-${this.indexBase}-template`,
+        _meta: { managed_by: 'inmeta-docs-api' },
         index_patterns: [`${this.indexBase}-*`],
         template: {
           settings: {
@@ -32,42 +34,54 @@ export class LogsService {
             number_of_replicas: 0,
           },
           mappings: {
-            dynamic: 'true',
+            dynamic: 'strict',
             properties: {
               ts: { type: 'date' },
               level: { type: 'keyword' },
-              requestId: { type: 'keyword' },
-              route: { type: 'keyword' },
-              method: { type: 'keyword' },
-              statusCode: { type: 'integer' },
-              durationMs: { type: 'float' },
               message: { type: 'text' },
-              service: { type: 'keyword' },
-              env: { type: 'keyword' },
-              host: { type: 'keyword' },
-              remoteIp: { type: 'ip' },
-              userId: { type: 'keyword' },
+              http: {
+                properties: {
+                  method: { type: 'keyword' },
+                  path: { type: 'keyword' },
+                  status: { type: 'integer' },
+                  took_ms: { type: 'integer' },
+                  user_agent: { type: 'text' },
+                  ip: { type: 'keyword' },
+                },
+              },
             },
           },
         },
-        priority: 50,
-        _meta: { managed_by: 'INMETA' },
+        priority: 10,
       });
-      this.logger.log(`Created index template: ${templateName}`);
+    } catch (e: any) {
+      this.logger.warn(`Falha ao garantir template 'logs-${this.indexBase}-template': ${e?.message ?? e}`);
     }
   }
 
-    async log(index: string, level: string, message: string) {
-        try {
-            await this.es.index({
-                index: this.dailyIndex(index),
-                refresh: false,
-                document: { ts: new Date().toISOString(), level, message },
-            });
-        } catch (e) {
-            // não derruba a API se ES estiver fora
-            console.warn('[LogsService] falha ao indexar log:', (e as Error).message);
-        }
+  async log(index: string, level: string, message: string, extra?: Record<string, any>) {
+    try {
+      await this.es.index({
+        index: this.dailyIndex(index), // <— agora compila
+        refresh: false,
+        document: { ts: new Date().toISOString(), level, message, ...extra },
+      });
+    } catch (e: any) {
+      this.logger.warn(`[LogsService] falha ao indexar log: ${e?.message ?? e}`);
     }
+  }
 
+  async logHttp(req: any, tookMs: number, status: number) {
+    const path = (req.originalUrl ?? req.url ?? '').split('?')[0];
+    return this.log(this.indexBase, 'info', `${req.method} ${path} -> ${status} (${tookMs}ms)`, {
+      http: {
+        method: req.method,
+        path,
+        status,
+        took_ms: Math.round(tookMs),
+        user_agent: req.headers?.['user-agent'],
+        ip: req.ip ?? req.headers?.['x-forwarded-for'] ?? req.connection?.remoteAddress,
+      },
+    });
+  }
 }
