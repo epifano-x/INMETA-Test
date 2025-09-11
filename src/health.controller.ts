@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
 import { ElasticsearchService } from '@nestjs/elasticsearch';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
