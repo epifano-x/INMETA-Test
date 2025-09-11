@@ -12,6 +12,7 @@ services:
       - .env.dev
     networks:
       - web
+      - elk-dev   # << add isto
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=web"
@@ -26,4 +27,6 @@ services:
 
 networks:
   web:
+    external: true
+  elk-dev:        # << a mesma rede que o elasticsearch-dev usa
     external: true
