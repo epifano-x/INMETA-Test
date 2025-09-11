@@ -9,7 +9,7 @@ async function bootstrap() {
 
   app.setGlobalPrefix(process.env.GLOBAL_PREFIX || 'api');
 
-  const logs = app.get(LogsService);
+  const logs = app.get(LogsService, { strict: false });
   await logs.ensureTemplate();
   app.useGlobalInterceptors(new RequestLoggerInterceptor(logs));
 
