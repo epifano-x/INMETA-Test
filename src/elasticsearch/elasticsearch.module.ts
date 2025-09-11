@@ -1,44 +1,35 @@
-import type { ClientOptions } from '@elastic/elasticsearch';
-import { Global, Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { ElasticsearchModule as NestElasticsearchModule } from '@nestjs/elasticsearch';
-import { LogsService } from './logs.service';
+import { ElasticsearchModule } from '@nestjs/elasticsearch';
 
-@Global()
 @Module({
   imports: [
-    ConfigModule,
-    NestElasticsearchModule.registerAsync({
-      imports: [ConfigModule],
+    ConfigModule.forRoot({ isGlobal: true }),
+    ElasticsearchModule.registerAsync({
       useFactory: (cfg: ConfigService) => {
-        const node = cfg.get<string>('ELASTICSEARCH_NODE') || '';
-        const username = cfg.get<string>('ELASTICSEARCH_USERNAME');
-        const password = cfg.get<string>('ELASTICSEARCH_PASSWORD');
-        const rejectUnauthorized =
-          (cfg.get<string>('ELASTICSEARCH_TLS_REJECT_UNAUTHORIZED') || '').toLowerCase() !== 'false';
+        const node = cfg.get<string>('ELASTICSEARCH_NODE');
+        if (!node) throw new Error('ELASTICSEARCH_NODE ausente. Defina no .env');
 
-        const options: Partial<ClientOptions> = {
+        return {
           node,
-          name: 'inmeta-docs-api',
-          compression: true,
+          auth: {
+            username: cfg.get<string>('ELASTICSEARCH_USERNAME') ?? '',
+            password: cfg.get<string>('ELASTICSEARCH_PASSWORD') ?? '',
+          },
+          tls:
+            cfg.get('ELASTICSEARCH_TLS_REJECT_UNAUTHORIZED') === 'false'
+              ? { rejectUnauthorized: false }
+              : undefined,
+          name: cfg.get('APP_NAME') ?? 'inmeta-docs-api',
           maxRetries: 3,
+          compression: true,
+          compatibilityMode: true, // fala com ES 8.x usando headers compatíveis
         };
-
-        if (username && password) {
-          options.auth = { username, password }; // BasicAuth
-        }
-        if (!rejectUnauthorized) {
-          // Node.js TLS options
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (options as any).tls = { rejectUnauthorized: false };
-        }
-
-        return options as ClientOptions;
       },
       inject: [ConfigService],
     }),
   ],
-  providers: [LogsService],
-  exports: [NestElasticsearchModule, LogsService],
+  // 👇 exporta o ElasticsearchModule já configurado
+  exports: [ElasticsearchModule],
 })
-export class ElasticsearchModule {}
+export class ElasticsearchAppModule {}

@@ -1,13 +1,15 @@
+// src/main.ts
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { RequestLoggerInterceptor } from './common/interceptors/request-logger.interceptor';
-import { LogsService } from './elasticsearch';
+import { LogsService } from './logs/logs.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  app.setGlobalPrefix(process.env.GLOBAL_PREFIX || 'api');
+  const prefix = process.env.GLOBAL_PREFIX || 'api';
+  app.setGlobalPrefix(prefix);
 
   const logs = app.get(LogsService);
   await logs.ensureTemplate();
@@ -19,12 +21,10 @@ async function bootstrap() {
       .setTitle('INMETA Docs API')
       .setDescription('API para gerenciamento de documentação de colaboradores')
       .setVersion('0.0.1')
-      .addServer('/')
+      .addServer(`/`) // <- importante: reflete o globalPrefix
       .build();
     const doc = SwaggerModule.createDocument(app, config);
-    SwaggerModule.setup('docs', app, doc, {
-      swaggerOptions: { persistAuthorization: true },
-    });
+    SwaggerModule.setup('docs', app, doc, { swaggerOptions: { persistAuthorization: true } });
   }
 
   await app.listen(Number(process.env.PORT ?? 3000));
