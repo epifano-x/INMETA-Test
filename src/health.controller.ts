@@ -1,7 +1,8 @@
+// src/health.controller.ts
 import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
 import { ElasticsearchService } from '@nestjs/elasticsearch';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { LogsService } from './logs/logs.service';
+import { LogsService } from './logs.service'; // <-- corrigido
 
 @ApiTags('health')
 @Controller('health')
@@ -24,11 +25,10 @@ export class HealthController {
   @ApiResponse({ status: 503, description: 'Elasticsearch indisponível' })
   async elasticsearch() {
     const started = Date.now();
-    const route = '/api/health/elasticsearch'; // só pra constar no log
+    const route = '/api/health/elasticsearch';
     const app = process.env.APP_NAME ?? 'inmeta-docs-api';
     const environment = process.env.ENVIRONMENT ?? process.env.NODE_ENV ?? 'development';
 
-    // log de "bateu no endpoint"
     await this.logs.log(this.logs.indexBase, 'info', 'health.elasticsearch.hit', {
       app,
       environment,
@@ -38,7 +38,6 @@ export class HealthController {
     try {
       const info = await this.es.info();
 
-      // log de sucesso
       await this.logs.log(this.logs.indexBase, 'info', 'health.elasticsearch.ok', {
         app,
         environment,
@@ -57,7 +56,6 @@ export class HealthController {
         version: info.version,
       };
     } catch (err: any) {
-      // log de erro (não derruba se o log falhar; o LogsService já trata)
       await this.logs.log(this.logs.indexBase, 'error', 'health.elasticsearch.error', {
         app,
         environment,
