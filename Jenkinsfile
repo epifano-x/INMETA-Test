@@ -10,7 +10,7 @@ pipeline {
   }
 
   options {
-    disableResume()   // performance > durabilidade
+    disableResume()
     timestamps()
   }
 
@@ -23,18 +23,18 @@ pipeline {
     }
 
     stage('Write .env.dev from credentials') {
-        steps {
-            withCredentials([file(credentialsId: 'inmeta-dev-env-file', variable: 'ENV_FILE')]) {
-            sh '''
-                set -e
-                echo "[jenkins] copying .env.dev"
-                cp "$ENV_FILE" .env.dev
-                test -s .env.dev
-            '''
-            }
+      steps {
+        withCredentials([file(credentialsId: 'inmeta-dev-env-file', variable: 'ENV_FILE')]) {
+          sh '''
+            set -e
+            echo "[jenkins] copying .env.dev"
+            cp "$ENV_FILE" .env.dev
+            test -s .env.dev
+            echo "[jenkins] .env.dev size: $(stat -c%s .env.dev 2>/dev/null || stat -f%z .env.dev)"
+          '''
         }
+      }
     }
-
 
     stage('Docker build') {
       steps {
@@ -51,19 +51,20 @@ pipeline {
         sh '''
           set -eux
 
-          # garante rede do traefik
-          docker network create web || true
+          # garante redes necessárias
+          docker network inspect elk-dev >/dev/null 2>&1 || docker network create elk-dev
+          docker network inspect web     >/dev/null 2>&1 || docker network create web
 
           # remove container anterior se existir
           docker rm -f ${CONTAINER} || true
 
-          # sobe container novo
+          # sobe na elk-dev (para resolver elasticsearch-dev) e depois conecta na web (Traefik)
           docker run -d --name ${CONTAINER} \
             --restart unless-stopped \
             --env-file .env.dev \
             -e NODE_ENV=development \
             -e PORT=${PORT} \
-            --network web \
+            --network elk-dev \
             --label traefik.enable=true \
             --label traefik.docker.network=web \
             --label traefik.http.routers.api-dev-http.rule='Host(`dev.inmeta.dynax.com.br`)' \
@@ -76,8 +77,20 @@ pipeline {
             --label traefik.http.services.api-dev.loadbalancer.server.port=${PORT} \
             ${IMAGE_NAME}:${IMAGE_TAG}
 
-          # mostra status
+          # conecta também na rede do Traefik
+          docker network connect web ${CONTAINER} || true
+
+          # status
           docker ps --filter "name=${CONTAINER}"
+
+          echo "[jenkins] ===== Diagnóstico de rede dentro do container ====="
+          # DNS do ES
+          docker exec -i ${CONTAINER} sh -lc 'node -e "const u=new URL(process.env.ELASTICSEARCH_NODE||\"http://elasticsearch-dev:9200\"); require(\"dns\").promises.lookup(u.hostname).then(r=>console.log(\"DNS OK:\",u.hostname,r)).catch(e=>console.error(\"DNS FAIL:\",u.hostname,e.message))"' || true
+
+          # TCP para o ES
+          docker exec -i ${CONTAINER} sh -lc 'node -e "const u=new URL(process.env.ELASTICSEARCH_NODE||\"http://elasticsearch-dev:9200\"); const net=require(\"net\"); const s=net.connect(u.port||9200,u.hostname,()=>{console.log(\"TCP OK:\",u.hostname, u.port||9200); s.end()}).on(\"error\",e=>{console.error(\"TCP ERR:\",u.hostname, u.port||9200, e.message)})"' || true
+
+          echo "[jenkins] ================================================"
         '''
       }
     }
