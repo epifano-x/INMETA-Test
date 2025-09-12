@@ -10,26 +10,13 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiServiceUnavailableResponse,
-  ApiTags
+  ApiTags,
 } from '@nestjs/swagger';
 import { LogsService } from '../logs/logs.service';
 
-class HealthOkResponse {
-  ok: boolean;
-}
-
-class HealthElasticsearchOkResponse {
-  ok: boolean;
-  name: string;
-  cluster_name: string;
-  version: string;
-}
-
-class HealthElasticsearchErrorResponse {
-  statusCode: number;
-  message: string;
-  error: string;
-}
+import { HealthElasticsearchErrorResponse } from './dto/health-elasticsearch-error-response.dto';
+import { HealthElasticsearchOkResponse } from './dto/health-elasticsearch-ok-response.dto';
+import { HealthOkResponse } from './dto/health-ok-response.dto';
 
 @ApiTags('health')
 @ApiExtraModels(
@@ -46,18 +33,14 @@ export class HealthController {
     private readonly logs: LogsService,
   ) {}
 
-  /**
-   * 🔹 Endpoint para checar se a API está operacional.
-   * Retorna { ok: true } caso esteja funcionando normalmente.
-   */
   @Get()
   @ApiOperation({
-    summary: 'Health check da API',
+    summary: 'API Health Check',
     description:
-      'Verifica se a API está em execução e responde com status 200. Útil para monitoramento básico.',
+      'Checks if the API is running and returns status 200 when it is available. Useful for basic monitoring.',
   })
   @ApiOkResponse({
-    description: 'API está operacional',
+    description: 'API is healthy and operational',
     type: HealthOkResponse,
     schema: {
       example: { ok: true },
@@ -69,19 +52,15 @@ export class HealthController {
     return { ok: true };
   }
 
-  /**
-   * 🔹 Endpoint para checar se o Elasticsearch está disponível.
-   * Retorna informações sobre o cluster e a versão.
-   */
   @Get('elasticsearch')
   @ApiOperation({
-    summary: 'Health do Elasticsearch',
+    summary: 'Elasticsearch Health Check',
     description:
-      'Verifica se o cluster do Elasticsearch está acessível e retorna informações básicas como nome, cluster e versão. ' +
-      'Caso o serviço esteja indisponível, retorna 503 (Service Unavailable).',
+      'Checks if the Elasticsearch cluster is reachable and returns basic information such as node name, cluster name, and version. ' +
+      'If the service is unavailable, returns HTTP 503.',
   })
   @ApiOkResponse({
-    description: 'Elasticsearch operacional',
+    description: 'Elasticsearch is healthy and operational',
     type: HealthElasticsearchOkResponse,
     schema: {
       example: {
@@ -93,7 +72,7 @@ export class HealthController {
     },
   })
   @ApiServiceUnavailableResponse({
-    description: 'Elasticsearch indisponível',
+    description: 'Elasticsearch is unavailable',
     type: HealthElasticsearchErrorResponse,
     schema: {
       example: {
@@ -104,25 +83,29 @@ export class HealthController {
     },
   })
   async elasticsearch() {
-    this.logger.log('GET /health/elasticsearch - checking ES');
+    this.logger.log('GET /health/elasticsearch - checking Elasticsearch');
     try {
       const info: any = await this.es.info();
       const name = info?.name;
       const cluster_name = info?.cluster_name;
       const version = info?.version?.number ?? info?.version;
 
-      await this.logs.emit('log', 'health.elasticsearch.ok', HealthController.name, {
-        name,
-        cluster_name,
-        version,
-      });
+      await this.logs.emit(
+        'log',
+        'health.elasticsearch.ok',
+        HealthController.name,
+        { name, cluster_name, version },
+      );
 
       return { ok: true, name, cluster_name, version };
     } catch (err: any) {
       const message = err?.message ?? String(err);
-      await this.logs.emit('warn', 'health.elasticsearch.error', HealthController.name, {
-        error: message,
-      });
+      await this.logs.emit(
+        'warn',
+        'health.elasticsearch.error',
+        HealthController.name,
+        { error: message },
+      );
       throw new ServiceUnavailableException(message);
     }
   }
