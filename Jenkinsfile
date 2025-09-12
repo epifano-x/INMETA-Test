@@ -15,11 +15,8 @@ pipeline {
   }
 
   stages {
-
     stage('Checkout') {
-      steps {
-        checkout scm
-      }
+      steps { checkout scm }
     }
 
     stage('Write .env.dev from credentials') {
@@ -51,14 +48,11 @@ pipeline {
         sh '''
           set -eux
 
-          # garante redes necessárias
           docker network inspect elk-dev >/dev/null 2>&1 || docker network create elk-dev
           docker network inspect web     >/dev/null 2>&1 || docker network create web
 
-          # remove container anterior se existir
           docker rm -f ${CONTAINER} || true
 
-          # sobe na elk-dev (para resolver elasticsearch-dev) e depois conecta na web (Traefik)
           docker run -d --name ${CONTAINER} \
             --restart unless-stopped \
             --env-file .env.dev \
@@ -77,37 +71,53 @@ pipeline {
             --label traefik.http.services.api-dev.loadbalancer.server.port=${PORT} \
             ${IMAGE_NAME}:${IMAGE_TAG}
 
-          # conecta também na rede do Traefik
           docker network connect web ${CONTAINER} || true
 
-          # status
           docker ps --filter "name=${CONTAINER}"
 
           echo "[jenkins] ===== Diagnóstico de rede dentro do container ====="
-          # DNS do ES
-          docker exec -i ${CONTAINER} sh -lc 'node -e "const u=new URL(process.env.ELASTICSEARCH_NODE||\"http://elasticsearch-dev:9200\"); require(\"dns\").promises.lookup(u.hostname).then(r=>console.log(\"DNS OK:\",u.hostname,r)).catch(e=>console.error(\"DNS FAIL:\",u.hostname,e.message))"' || true
+          # QUOTING CORRIGIDO COM '"'"'
+          docker exec -i ${CONTAINER} sh -lc 'node -e '"'"'const u=new URL(process.env.ELASTICSEARCH_NODE||"http://elasticsearch-dev:9200"); require("dns").promises.lookup(u.hostname).then(r=>console.log("DNS OK:",u.hostname,r)).catch(e=>console.error("DNS FAIL:",u.hostname,e.message))'"'"'' || true
 
-          # TCP para o ES
-          docker exec -i ${CONTAINER} sh -lc 'node -e "const u=new URL(process.env.ELASTICSEARCH_NODE||\"http://elasticsearch-dev:9200\"); const net=require(\"net\"); const s=net.connect(u.port||9200,u.hostname,()=>{console.log(\"TCP OK:\",u.hostname, u.port||9200); s.end()}).on(\"error\",e=>{console.error(\"TCP ERR:\",u.hostname, u.port||9200, e.message)})"' || true
-
+          docker exec -i ${CONTAINER} sh -lc 'node -e '"'"'const u=new URL(process.env.ELASTICSEARCH_NODE||"http://elasticsearch-dev:9200"); const net=require("net"); const s=net.connect(u.port||9200,u.hostname,()=>{console.log("TCP OK:",u.hostname,u.port||9200); s.end()}).on("error",e=>{console.error("TCP ERR:",u.hostname,u.port||9200,e.message)})'"'"'' || true
           echo "[jenkins] ================================================"
         '''
       }
     }
 
-    stage('Smoke test') {
+    stage('Smoke test (interno)') {
       steps {
         sh '''
           set -e
-          echo "Aguardando ${APP_HOST} subir..."
+          echo "[jenkins] Aguardando app responder internamente (localhost:${PORT})..."
+          # espera até a app estar de pé por dentro do container
           for i in $(seq 1 60); do
-            if curl -fsS ${APP_HOST}/api/health >/dev/null ; then
-              echo "OK"
+            if docker exec -i ${CONTAINER} sh -lc "curl -fsS http://localhost:${PORT}/api/health >/dev/null"; then
+              echo "[jenkins] App OK internamente"
               exit 0
             fi
             sleep 1
           done
-          echo "Healthcheck falhou"
+          echo "[jenkins] App NAO respondeu internamente (localhost:${PORT}/api/health)"
+          docker logs --tail=200 ${CONTAINER} || true
+          exit 1
+        '''
+      }
+    }
+
+    stage('Smoke test (externo via Traefik)') {
+      steps {
+        sh '''
+          set -e
+          echo "Aguardando ${APP_HOST} subir via Traefik..."
+          for i in $(seq 1 60); do
+            if curl -fsS ${APP_HOST}/api/health >/dev/null ; then
+              echo "OK (Traefik)"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Healthcheck via Traefik falhou"
           exit 1
         '''
       }
