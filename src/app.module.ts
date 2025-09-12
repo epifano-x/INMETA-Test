@@ -1,14 +1,17 @@
+// src/app.module.ts
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ElasticsearchModule } from '@nestjs/elasticsearch';
 
-import { HealthModule } from './health/health.module';
+import { HealthController } from './health/health.controller';
 import { LogsModule } from './logs/logs.module';
 
 @Module({
   imports: [
+    // carrega .env e deixa global
     ConfigModule.forRoot({ isGlobal: true }),
 
+    // registra o provider ElasticsearchService
     ElasticsearchModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -24,12 +27,14 @@ import { LogsModule } from './logs/logs.module';
           node,
           auth: username && password ? { username, password } : undefined,
           tls: { rejectUnauthorized },
+          // não força conexão na inicialização; só quando usar
+          // (client do @elastic é lazy, então ok para ambiente local sem ES)
         };
       },
     }),
 
-    LogsModule,
-    HealthModule,
+    LogsModule, // seu módulo de logs
   ],
+  controllers: [HealthController],
 })
 export class AppModule {}
