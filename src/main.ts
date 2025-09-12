@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { LogsService } from './logs/logs.service'; // mesmo diretório do main
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -18,7 +19,7 @@ async function bootstrap() {
     const doc = SwaggerModule.createDocument(app, config /*, { include: [AppModule] }*/);
     SwaggerModule.setup('docs', app, doc, { swaggerOptions: { persistAuthorization: true } });
   }
-
+  await app.get(LogsService).ensureTemplate();
   await app.listen(Number(process.env.PORT ?? 3000));
 }
 bootstrap();
