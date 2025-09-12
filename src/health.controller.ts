@@ -2,7 +2,7 @@
 import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
 import { ElasticsearchService } from '@nestjs/elasticsearch';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { LogsService } from './logs.service';
+import { LogsService } from './logs/logs.service';
 
 @ApiTags('health')
 @Controller('health')
