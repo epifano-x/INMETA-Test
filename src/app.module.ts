@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
-import { ElasticsearchAppModule } from './elasticsearch';
+import { ConfigModule } from '@nestjs/config';
+import { ElasticsearchAppModule } from './elasticsearch/elasticsearch.module';
 import { HealthController } from './health.controller';
+import { LogsModule } from './logs/logs.module';
 
 @Module({
-  imports: [ElasticsearchAppModule],
-  controllers: [HealthController],      // 👈 essencial pro Swagger enxergar rotas
+  imports: [ConfigModule.forRoot({ isGlobal: true }), ElasticsearchAppModule, LogsModule],
+  controllers: [HealthController],
 })
 export class AppModule {}

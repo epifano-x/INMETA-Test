@@ -1,25 +1,37 @@
+import { Logger, ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { AppModule } from './app.module';
-import { LogsService } from './logs/logs.service'; // mesmo diretório do main
+
+import { AppModule } from './app.module'; // mantém o teu AppModule
+import { LogsService } from './logs/logs.service';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  app.setGlobalPrefix(process.env.GLOBAL_PREFIX || 'api');
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const logger = new Logger('Bootstrap');
+  const cfg = app.get(ConfigService);
 
-  const swaggerEnabled = (process.env.SWAGGER_ENABLED || 'true').toLowerCase() === 'true';
-  if (swaggerEnabled) {
-    const config = new DocumentBuilder()
-      .setTitle('INMETA Docs API')
-      .setDescription('API para gerenciamento de documentação de colaboradores')
-      .setVersion('0.0.1')
-      .addServer('/') // mantém
+  app.setGlobalPrefix('api');
+  app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
+
+  if ((cfg.get<string>('SWAGGER_ENABLED') ?? 'true').toString().toLowerCase() !== 'false') {
+    const doc = new DocumentBuilder()
+      .setTitle(cfg.get('APP_NAME') ?? 'inmeta-docs-api')
       .build();
-
-    const doc = SwaggerModule.createDocument(app, config /*, { include: [AppModule] }*/);
-    SwaggerModule.setup('docs', app, doc, { swaggerOptions: { persistAuthorization: true } });
+    const docRef = SwaggerModule.createDocument(app, doc);
+    SwaggerModule.setup('api/docs', app, docRef);
   }
-  await app.get(LogsService).ensureTemplate();
-  await app.listen(Number(process.env.PORT ?? 3000));
+
+  const port = Number(process.env.PORT || 3000);
+  await app.listen(port);
+
+  // log de startup (não falha se ES estiver fora)
+  try {
+    const logs = app.get(LogsService);
+    await logs.log('app.started', { port });
+  } catch {}
+
+  logger.log(`App ouvindo em :${port}`);
 }
+
 bootstrap();
