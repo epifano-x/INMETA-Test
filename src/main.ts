@@ -30,7 +30,7 @@ async function bootstrap() {
     const doc = new DocumentBuilder()
       .setTitle('INMETA Docs API')
       .setVersion('1.0.0')
-      .addServer('api/')
+      .addServer('/')
       .build();
     const document = SwaggerModule.createDocument(app, doc);
     SwaggerModule.setup('api/docs', app, document);
