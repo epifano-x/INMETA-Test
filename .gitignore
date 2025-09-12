@@ -12,6 +12,10 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 
+# NÃO ignore a pasta de código src/logs
+!src/logs/
+!src/logs/**
+
 # OS
 .DS_Store
 
