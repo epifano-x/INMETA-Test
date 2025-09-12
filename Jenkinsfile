@@ -20,15 +20,15 @@ pipeline {
       steps { checkout scm }
     }
 
-    stage('Write .env.dev from credentials') {
+    stage('Write .env from credentials') {
       steps {
         withCredentials([file(credentialsId: 'inmeta-dev-env-file', variable: 'ENV_FILE')]) {
           sh '''
             set -e
-            echo "[jenkins] copying .env.dev"
-            cp "$ENV_FILE" .env.dev
-            test -s .env.dev
-            stat -c%s .env.dev | xargs echo "[jenkins] .env.dev size:"
+            echo "[jenkins] copying .env"
+            cp "$ENV_FILE" .env
+            test -s .env
+            stat -c%s .env | xargs echo "[jenkins] .env size:"
           '''
         }
       }
@@ -59,7 +59,7 @@ pipeline {
           # SOBE PRIMEIRO NA REDE "web" (Traefik)
           docker run -d --name ${CONTAINER} \
             --restart unless-stopped \
-            --env-file .env.dev \
+            --env-file .env \
             -e NODE_ENV=development \
             -e PORT=${PORT} \
             --network web \
