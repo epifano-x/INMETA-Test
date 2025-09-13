@@ -14,16 +14,20 @@ import {
 } from '@nestjs/swagger';
 import { LogsService } from '../logs/logs.service';
 
+import { Public } from '../auth/public.decorator';
+import { Roles } from '../auth/roles.decorator';
 import { HealthElasticsearchErrorResponse } from './dto/health-elasticsearch-error-response.dto';
 import { HealthElasticsearchOkResponse } from './dto/health-elasticsearch-ok-response.dto';
 import { HealthOkResponse } from './dto/health-ok-response.dto';
 
+import { ApiBearerAuth } from '@nestjs/swagger';
 @ApiTags('health')
 @ApiExtraModels(
   HealthOkResponse,
   HealthElasticsearchOkResponse,
   HealthElasticsearchErrorResponse,
 )
+@ApiBearerAuth('access-token')
 @Controller('health')
 export class HealthController {
   private readonly logger = new Logger(HealthController.name);
@@ -33,6 +37,7 @@ export class HealthController {
     private readonly logs: LogsService,
   ) {}
 
+  @Public()
   @Get()
   @ApiOperation({
     summary: 'API Health Check',
@@ -52,6 +57,7 @@ export class HealthController {
     return { ok: true };
   }
 
+  @Roles('admin')
   @Get('elasticsearch')
   @ApiOperation({
     summary: 'Elasticsearch Health Check',

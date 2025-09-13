@@ -1,8 +1,8 @@
 import {
-    ConsoleLogger,
-    Injectable,
-    LoggerService,
-    OnModuleInit,
+  ConsoleLogger,
+  Injectable,
+  LoggerService,
+  OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ElasticsearchService } from '@nestjs/elasticsearch';
@@ -18,15 +18,14 @@ export class LogsService extends ConsoleLogger implements LoggerService, OnModul
     private readonly es: ElasticsearchService,
     private readonly cfg: ConfigService,
   ) {
-    super('Nest'); // prefixo default do ConsoleLogger
+    super('Nest');
   }
 
   async onModuleInit() {
     this.appName = this.cfg.get<string>('APP_NAME') || 'inmeta-docs-api';
-    // índice no ES tem que ser lowercase
+
     this.index = (this.cfg.get<string>('ELASTICSEARCH_LOGS_INDEX') || 'inmeta').toLowerCase();
 
-    // tenta criar índice (não falha se não conseguir)
     try {
       const exists = await this.es.indices.exists({ index: this.index });
       if (!exists) {
@@ -57,7 +56,6 @@ export class LogsService extends ConsoleLogger implements LoggerService, OnModul
     }
   }
 
-  // ---------- API pública ----------
 
   async emit(
     level: Level,
@@ -65,10 +63,8 @@ export class LogsService extends ConsoleLogger implements LoggerService, OnModul
     context?: string,
     meta?: Record<string, any>,
   ) {
-    // 1) mantém saída no console padrão do Nest
     this.console(level, message, context, meta);
 
-    // 2) envia pro ES sem quebrar fluxo
     try {
       await this.es.index({
         index: this.index,
@@ -82,12 +78,10 @@ export class LogsService extends ConsoleLogger implements LoggerService, OnModul
         },
       });
     } catch (e) {
-      // nunca quebrar a app por falha de log
       super.warn(`ES log failed: ${String(e?.message || e)}`, 'LogsService');
     }
   }
 
-  // atalhos de LoggerService (Nest)
   async log(message: any, context?: string) {
     await this.emit('log', message, context);
   }
@@ -104,7 +98,6 @@ export class LogsService extends ConsoleLogger implements LoggerService, OnModul
     await this.emit('verbose', message, context);
   }
 
-  // ---------- helpers ----------
   private console(
     level: Level,
     message: any,

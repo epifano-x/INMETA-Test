@@ -13,26 +13,32 @@ async function bootstrap() {
   const cfg = app.get(ConfigService);
   const logs = app.get(LogsService);
 
-  // usa nosso logger como logger global do Nest
   app.useLogger(logs);
 
-  // filtro global de exceções
   app.useGlobalFilters(new AllExceptionsFilter(logs));
 
-  // validation
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
-  // interceptor de log de requisições
   app.useGlobalInterceptors(new RequestLoggerInterceptor(logs));
   
-  // swagger opcional
   if (String(cfg.get('SWAGGER_ENABLED') ?? 'true').toLowerCase() === 'true') {
     const doc = new DocumentBuilder()
       .setTitle('INMETA Docs API')
+      .setDescription('API da INMETA com integração ao Keycloak')
       .setVersion('1.0.0')
       .addTag('health', 'Endpoints for application and Elasticsearch health checks')
       .addServer('api/')
+      .addBearerAuth(
+        {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          in: 'header',
+        },
+        'access-token',
+      )
       .build();
+
     const document = SwaggerModule.createDocument(app, doc);
     SwaggerModule.setup('docs', app, document);
   }
@@ -41,7 +47,6 @@ async function bootstrap() {
 
   const port = Number(process.env.PORT || 3000);
 
-  // captura fatalidades de processo e manda pro ES
   process.on('uncaughtException', async (err) => {
     await logs.emit('error', 'uncaughtException', 'process', {
       name: err.name,

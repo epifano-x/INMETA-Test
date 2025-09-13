@@ -1,17 +1,18 @@
-// src/app.module.ts
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
 import { ElasticsearchModule } from '@nestjs/elasticsearch';
 
 import { HealthController } from './health/health.controller';
 import { LogsModule } from './logs/logs.module';
 
+import { AuthModule } from './auth/auth.module';
+import { JwtAuthGuard } from './auth/jwt-auth.guard';
+import { RolesGuard } from './auth/roles.guard';
 @Module({
   imports: [
-    // carrega .env e deixa global
     ConfigModule.forRoot({ isGlobal: true }),
 
-    // registra o provider ElasticsearchService
     ElasticsearchModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -27,14 +28,17 @@ import { LogsModule } from './logs/logs.module';
           node,
           auth: username && password ? { username, password } : undefined,
           tls: { rejectUnauthorized },
-          // não força conexão na inicialização; só quando usar
-          // (client do @elastic é lazy, então ok para ambiente local sem ES)
         };
       },
     }),
 
-    LogsModule, // seu módulo de logs
+    LogsModule,
+    AuthModule,
   ],
   controllers: [HealthController],
+  providers: [
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
+  ],
 })
 export class AppModule {}

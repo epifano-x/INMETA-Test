@@ -21,7 +21,6 @@ import { LogsService } from './logs.service';
           node,
           auth: username && password ? { username, password } : undefined,
           tls: { rejectUnauthorized },
-          // evita travar build se ES não responde na inicialização
           maxRetries: 1,
           requestTimeout: 2000,
         };
