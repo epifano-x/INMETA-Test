@@ -6,25 +6,23 @@ export class PrismaService
   extends PrismaClient
   implements OnModuleInit, OnModuleDestroy
 {
+  constructor() {
+    super({
+      log: ['query', 'info', 'warn', 'error'], // habilita eventos
+    });
+  }
+
   async onModuleInit() {
     try {
       await this.$connect();
-      console.log('[PrismaService] ✅ Conectado ao banco de dados');
-    } catch (err: any) {
-      console.error('[PrismaService] ❌ Erro ao conectar no banco:');
-      console.error('Mensagem:', err.message);
-      console.error('Stack:', err.stack);
-      console.error('Code:', err.code);
-      throw err;
+      console.log('✅ [PrismaService] Conectado ao banco de dados');
+    } catch (err) {
+      console.error('❌ [PrismaService] Erro ao conectar ao banco:', err);
     }
-
-    this.$on('error', (e) => {
-      console.error('[PrismaService] Prisma Error Event:', e);
-    });
   }
 
   async onModuleDestroy() {
     await this.$disconnect();
-    console.log('[PrismaService] 🔌 Desconectado do banco de dados');
+    console.log('🔌 [PrismaService] Desconectado do banco de dados');
   }
 }
