@@ -15,7 +15,8 @@ lerna-debug.log*
 # NÃO ignore a pasta de código src/logs
 !src/logs/
 !src/logs/**
-
+!src/modules/logs/
+!src/modules/logs/**
 # OS
 .DS_Store
 
