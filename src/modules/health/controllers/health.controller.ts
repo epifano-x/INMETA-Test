@@ -21,16 +21,23 @@ import { HealthElasticsearchOkResponse } from '../dto/health-elasticsearch-ok-re
 import { HealthOkResponse } from '../dto/health-ok-response.dto';
 
 import { ApiBearerAuth } from '@nestjs/swagger';
+import { PrismaClient } from '@prisma/client';
+import { HealthDatabaseErrorResponse } from '../dto/health-database-error-response.dto';
+import { HealthDatabaseOkResponse } from '../dto/health-database-ok-response.dto';
+
 @ApiTags('health')
 @ApiExtraModels(
   HealthOkResponse,
   HealthElasticsearchOkResponse,
   HealthElasticsearchErrorResponse,
+  HealthDatabaseOkResponse,
+  HealthDatabaseErrorResponse,
 )
 @ApiBearerAuth('access-token')
 @Controller('health')
 export class HealthController {
   private readonly logger = new Logger(HealthController.name);
+  private readonly prisma = new PrismaClient();
 
   constructor(
     private readonly es: ElasticsearchService,
@@ -109,6 +116,64 @@ export class HealthController {
       await this.logs.emit(
         'warn',
         'health.elasticsearch.error',
+        HealthController.name,
+        { error: message },
+      );
+      throw new ServiceUnavailableException(message);
+    }
+  }
+
+  @Roles('admin')
+  @Get('database')
+  @ApiOperation({
+    summary: 'Database Health Check',
+    description:
+      'Checks if the PostgreSQL database is reachable and responsive. Returns current timestamp if available.',
+  })
+  @ApiOkResponse({
+    description: 'Database is healthy and operational',
+    type: HealthDatabaseOkResponse,
+    schema: {
+      example: {
+        ok: true,
+        now: '2025-09-14T12:34:56.789Z',
+      },
+    },
+  })
+  @ApiServiceUnavailableResponse({
+    description: 'Database is unavailable',
+    type: HealthDatabaseErrorResponse,
+    schema: {
+      example: {
+        statusCode: 503,
+        message: 'Database connection failed',
+        error: 'Service Unavailable',
+      },
+    },
+  })
+  async database() {
+    this.logger.log('GET /health/database - checking Database');
+    try {
+      const result = await this.prisma.$queryRawUnsafe(
+        'SELECT NOW() as now',
+      ) as Array<{ now: Date }>;
+
+
+      const now = result[0]?.now?.toISOString() ?? new Date().toISOString();
+
+      await this.logs.emit(
+        'log',
+        'health.database.ok',
+        HealthController.name,
+        { now },
+      );
+
+      return { ok: true, now };
+    } catch (err: any) {
+      const message = err?.message ?? String(err);
+      await this.logs.emit(
+        'warn',
+        'health.database.error',
         HealthController.name,
         { error: message },
       );

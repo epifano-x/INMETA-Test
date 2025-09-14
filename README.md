@@ -252,3 +252,12 @@ npm run lint
 ## License
 
 MIT
+
+
+```
+CREATE DATABASE inmeta
+    WITH OWNER = dinax
+    ENCODING = 'UTF8'
+    CONNECTION LIMIT = -1;
+
+```
