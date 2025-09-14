@@ -12,6 +12,9 @@ import {
   ApiServiceUnavailableResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import * as fs from 'fs';
+import * as path from 'path';
+
 import { LogsService } from '../../logs/logs.service';
 
 import { Public } from '../../../common/decorators/public.decorator';
@@ -25,6 +28,8 @@ import { PrismaClient } from '@prisma/client';
 import { HealthDatabaseErrorResponse } from '../dto/health-database-error-response.dto';
 import { HealthDatabaseOkResponse } from '../dto/health-database-ok-response.dto';
 
+import { HealthFilesErrorResponse } from '../dto/health-files-error-response.dto';
+import { HealthFilesOkResponse } from '../dto/health-files-ok-response.dto';
 @ApiTags('health')
 @ApiExtraModels(
   HealthOkResponse,
@@ -32,6 +37,8 @@ import { HealthDatabaseOkResponse } from '../dto/health-database-ok-response.dto
   HealthElasticsearchErrorResponse,
   HealthDatabaseOkResponse,
   HealthDatabaseErrorResponse,
+  HealthFilesOkResponse,
+  HealthFilesErrorResponse,
 )
 @ApiBearerAuth('access-token')
 @Controller('health')
@@ -177,6 +184,72 @@ export class HealthController {
         HealthController.name,
         { error: message },
       );
+      throw new ServiceUnavailableException(message);
+    }
+  }
+
+
+  @Roles('admin')
+  @Get('files')
+  @ApiOperation({
+    summary: 'Files Storage Health Check',
+    description:
+      'Checks if the file storage is accessible. Tries to write and remove a temp file in the configured storage path.',
+  })
+  @ApiOkResponse({
+    description: 'File storage is healthy and operational',
+    type: HealthFilesOkResponse,
+    schema: {
+      example: {
+        ok: true,
+        path: '/app/uploads',
+      },
+    },
+  })
+  @ApiServiceUnavailableResponse({
+    description: 'File storage is unavailable',
+    type: HealthFilesErrorResponse,
+    schema: {
+      example: {
+        statusCode: 503,
+        message: 'EACCES: permission denied, mkdir \'/app/uploads\'',
+        error: 'Service Unavailable',
+      },
+    },
+  })
+  async files() {
+    this.logger.log('GET /health/files - checking Files Storage');
+
+    const storagePath =
+      process.env.FILES_STORAGE_PATH || path.resolve('./uploads');
+    const testFile = path.join(storagePath, 'health-check.tmp');
+
+    try {
+      if (!fs.existsSync(storagePath)) {
+        fs.mkdirSync(storagePath, { recursive: true });
+      }
+
+      fs.writeFileSync(testFile, 'health-check');
+      fs.unlinkSync(testFile);
+
+      await this.logs.emit(
+        'log',
+        'health.files.ok',
+        HealthController.name,
+        { path: storagePath },
+      );
+
+      return { ok: true, path: storagePath };
+    } catch (err: any) {
+      const message = err?.message ?? String(err);
+
+      await this.logs.emit(
+        'warn',
+        'health.files.error',
+        HealthController.name,
+        { error: message },
+      );
+
       throw new ServiceUnavailableException(message);
     }
   }
