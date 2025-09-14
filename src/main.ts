@@ -5,7 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { RequestLoggerInterceptor } from './common/interceptors/request-logger.interceptor';
-import { LogsService } from './logs/logs.service';
+import { LogsService } from './modules/logs/logs.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });

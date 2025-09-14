@@ -1,12 +1,12 @@
 import {
-  CallHandler,
-  ExecutionContext,
-  Injectable,
-  NestInterceptor,
+    CallHandler,
+    ExecutionContext,
+    Injectable,
+    NestInterceptor,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { Observable, tap } from 'rxjs';
-import { LogsService } from '../../logs/logs.service';
+import { LogsService } from '../../modules/logs/logs.service';
 
 @Injectable()
 export class RequestLoggerInterceptor implements NestInterceptor {

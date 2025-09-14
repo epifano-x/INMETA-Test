@@ -3,12 +3,12 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ElasticsearchModule } from '@nestjs/elasticsearch';
 
-import { HealthController } from './health/health.controller';
-import { LogsModule } from './logs/logs.module';
+import { HealthController } from './modules/health/controllers/health.controller';
+import { LogsModule } from './modules/logs/logs.module';
 
-import { AuthModule } from './auth/auth.module';
-import { JwtAuthGuard } from './auth/jwt-auth.guard';
-import { RolesGuard } from './auth/roles.guard';
+import { AuthModule } from './modules/auth/auth.module';
+import { JwtAuthGuard } from './modules/auth/jwt-auth.guard';
+import { RolesGuard } from './modules/auth/roles.guard';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),

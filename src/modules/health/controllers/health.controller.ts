@@ -12,13 +12,13 @@ import {
   ApiServiceUnavailableResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { LogsService } from '../logs/logs.service';
+import { LogsService } from '../../logs/logs.service';
 
-import { Public } from '../auth/public.decorator';
-import { Roles } from '../auth/roles.decorator';
-import { HealthElasticsearchErrorResponse } from './dto/health-elasticsearch-error-response.dto';
-import { HealthElasticsearchOkResponse } from './dto/health-elasticsearch-ok-response.dto';
-import { HealthOkResponse } from './dto/health-ok-response.dto';
+import { Public } from '../../../common/decorators/public.decorator';
+import { Roles } from '../../../common/decorators/roles.decorator';
+import { HealthElasticsearchErrorResponse } from '../dto/health-elasticsearch-error-response.dto';
+import { HealthElasticsearchOkResponse } from '../dto/health-elasticsearch-ok-response.dto';
+import { HealthOkResponse } from '../dto/health-ok-response.dto';
 
 import { ApiBearerAuth } from '@nestjs/swagger';
 @ApiTags('health')
