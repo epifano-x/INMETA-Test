@@ -30,7 +30,7 @@ export class CreateEmployeeService {
 
     const exists = await this.repo.findByCpf(cpfDigits);
     if (exists) {
-      throw new ConflictException('Já existe um colaborador com este CPF.');
+      throw new ConflictException('There is already an employee with this CPF.');
     }
 
     try {
@@ -47,9 +47,9 @@ export class CreateEmployeeService {
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
         const target = (err.meta?.target as string[]) ?? [];
-        if (target.includes('cpf')) return Promise.reject(new ConflictException('Já existe um colaborador com este CPF.'));
-        if (target.includes('registrationNumber')) return Promise.reject(new ConflictException('Já existe um colaborador com esta matrícula.'));
-        return Promise.reject(new ConflictException('Violação de unicidade em Employee.'));
+        if (target.includes('cpf')) return Promise.reject(new ConflictException('There is already an employee with this CPF.'));
+        if (target.includes('registrationNumber')) return Promise.reject(new ConflictException('There is already an employee with this registration number.'));
+        return Promise.reject(new ConflictException('Uniqueness violation in Employee.'));
       }
       throw err;
     }

@@ -22,9 +22,9 @@ export class PrismaService
   async onModuleInit() {
     try {
       await this.$connect();
-      console.log('✅ [PrismaService] Conectado ao banco de dados');
+      console.log('✅ [PrismaService] Connected to the database');
     } catch (err) {
-      console.error('❌ [PrismaService] Erro ao conectar ao banco:', err);
+      console.error('❌ [PrismaService] Error connecting to the bank:', err);
       throw err; // falha rápida
     }
   }
@@ -32,7 +32,7 @@ export class PrismaService
   async enableShutdownHooks(app: INestApplication) {
     const shutdown = async (reason: string) => {
       try {
-        console.log(`⏹️ [PrismaService] ${reason} – encerrando app...`);
+        console.log(`⏹️ [PrismaService] ${reason} – closing app...`);
         await app.close();
       } finally {
         // apenas desconecta o Prisma; não chama process.exit aqui
@@ -43,7 +43,7 @@ export class PrismaService
     process.once('SIGINT', () => shutdown('SIGINT'));
     process.once('SIGTERM', () => shutdown('SIGTERM'));
     process.once('beforeExit', async () => {
-      console.log('⏹️ [PrismaService] beforeExit – desconectando Prisma...');
+      console.log('⏹️ [PrismaService] beforeExit – Disconnected Prisma...');
       await this.$disconnect();
     });
 
@@ -51,6 +51,6 @@ export class PrismaService
 
   async onModuleDestroy() {
     await this.$disconnect();
-    console.log('🔌 [PrismaService] Desconectado do banco de dados');
+    console.log('🔌 [PrismaService] Disconnected from database');
   }
 }

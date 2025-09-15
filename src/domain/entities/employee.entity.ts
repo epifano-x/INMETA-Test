@@ -29,7 +29,7 @@ export class EmployeeEntity {
 
   static assertCpf(cpfDigits: string) {
     if (!/^\d{11}$/.test(cpfDigits)) {
-      throw new Error('cpf deve conter exatamente 11 dígitos numéricos');
+      throw new Error('CPF must contain exactly 11 numeric digits');
     }
   }
 
