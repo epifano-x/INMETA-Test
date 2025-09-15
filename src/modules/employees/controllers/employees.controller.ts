@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, HttpStatus, Param, Post, Put } from '@nestjs/common';
+import { Body, Controller, Delete, HttpCode, HttpStatus, Param, Post, Put } from '@nestjs/common';
 import {
     ApiBadRequestResponse,
     ApiBearerAuth,
@@ -14,9 +14,11 @@ import { Roles } from 'src/common/decorators/roles.decorator';
 import { AssignDocumentTypesDto } from '../dto/assign-document-types.dto';
 import { CreateEmployeeDto } from '../dto/create-employee.dto';
 import { EmployeeResponseDto } from '../dto/employee-response.dto';
+import { UnassignDocumentTypesDto } from '../dto/unassign-document-types.dto';
 import { UpdateEmployeeDto } from '../dto/update-employee.dto';
 import { AssignDocumentTypesService } from '../services/assign-document-types.service';
 import { CreateEmployeeService } from '../services/create-employee.service';
+import { UnassignDocumentTypesService } from '../services/unassign-document-types.service';
 import { UpdateEmployeeService } from '../services/update-employee.service';
 
 @ApiTags('employees')
@@ -27,6 +29,7 @@ export class EmployeesController {
     private readonly createEmployee: CreateEmployeeService,
     private readonly updateEmployee: UpdateEmployeeService,
     private readonly assignDocs: AssignDocumentTypesService,
+    private readonly unassignDocs: UnassignDocumentTypesService,
   ) {}
 
   @Roles('admin')
@@ -147,4 +150,24 @@ export class EmployeesController {
   ) {
     return await this.assignDocs.execute(employeeId, dto.documentTypeIds);
   }
+
+
+  @Roles('admin')
+  @Delete(':id/document-types')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    operationId: 'unassignDocumentTypes',
+    summary: 'Unassign document types from an employee',
+    description: 'Removes one or more document type links from a given employee.',
+  })
+  @ApiOkResponse({ description: 'Documents successfully unassigned' })
+  @ApiNotFoundResponse({ description: 'Employee or document type link not found' })
+  @ApiBadRequestResponse({ description: 'Invalid input data' })
+  async unassign(
+    @Param('id') employeeId: string,
+    @Body() dto: UnassignDocumentTypesDto,
+  ) {
+    return await this.unassignDocs.execute(employeeId, dto.documentTypeIds);
+  }
+
 }

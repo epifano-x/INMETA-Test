@@ -4,6 +4,7 @@ import { CreateEmployeeService } from './services/create-employee.service';
 
 import { PrismaEmployeeRepository } from '../../infra/persistence/employees.prisma.repository';
 import { AssignDocumentTypesService } from './services/assign-document-types.service';
+import { UnassignDocumentTypesService } from './services/unassign-document-types.service';
 import { UpdateEmployeeService } from './services/update-employee.service';
 import { EMPLOYEE_REPOSITORY } from './tokens';
 
@@ -13,6 +14,7 @@ import { EMPLOYEE_REPOSITORY } from './tokens';
     CreateEmployeeService,
     UpdateEmployeeService,
     AssignDocumentTypesService,
+    UnassignDocumentTypesService,
     { provide: EMPLOYEE_REPOSITORY, useClass: PrismaEmployeeRepository },
   ],
 })
