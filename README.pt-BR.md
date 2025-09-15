@@ -1,6 +1,6 @@
 # INMETA Docs API
 
-![INMETA Logo](./docs/inmeta-logo.png)
+![INMETA Logo](./docs/inmeta-convertido-de-webp.png)
 
 _Leia em outro idioma: **[English](README.md)**| **[Light Version](README.light.md)**_
 
@@ -203,7 +203,8 @@ curl -H "Authorization: Bearer <access_token>" https://dev.inmeta.dynax.com.br/a
 - Visualização no Kibana.  
 - Prefixo configurável via `.env`.  
 
-![Kibana Example](./docs/kibana-example.png)
+![Kibana Example](./docs/kibanaexemplo.png)
+
 ---
 
 ## Documentação da API (Swagger)
@@ -244,7 +245,7 @@ networks:
 
 Pipeline automatizado com **Jenkins** para build, testes e deploy.
 
-![Exemplo Jenkins](./docs/jenkins-example.png)
+![Jenkins Example](./docs/jenkinsexamplo.png)
 
 ---
 

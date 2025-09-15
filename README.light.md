@@ -1,6 +1,6 @@
 # INMETA Docs API (Light)
 
-![INMETA Logo](./docs/inmeta-logo.png)
+![INMETA Logo](./docs/inmeta-convertido-de-webp.png)
 
 _See also: [Full English](README.md) | [Português](README.pt-BR.md)_
 
@@ -20,4 +20,6 @@ Minimal overview of the project.
 - Swagger (Docs)
 - Jenkins (CI/CD)
 
-![Jenkins](./docs/jenkins-example.png)
+![Jenkins Example](./docs/jenkinsexamplo.png)
+
+![Kibana Example](./docs/kibanaexemplo.png)

@@ -1,6 +1,6 @@
 # INMETA Docs API
 
-![INMETA Logo](./docs/inmeta-logo.png)
+![INMETA Logo](./docs/inmeta-convertido-de-webp.png)
 
 _Read this in other languages: **[Português (Brasil)](README.pt-BR.md)**| **[Light Version](README.light.md)**_
 
@@ -203,7 +203,7 @@ curl -H "Authorization: Bearer <access_token>" https://dev.inmeta.dynax.com.br/a
 - Visualize in Kibana dashboards.  
 - Index prefix configured via `.env`.  
 
-![Kibana Example](./docs/kibana-example.png)
+![Kibana Example](./docs/kibanaexemplo.png)
 
 ---
 
@@ -245,7 +245,7 @@ networks:
 
 The project is integrated with Jenkins pipelines for build, test, and deploy automation.
 
-![Jenkins Example](./docs/jenkins-example.png)
+![Jenkins Example](./docs/jenkinsexamplo.png)
 
 ---
 
