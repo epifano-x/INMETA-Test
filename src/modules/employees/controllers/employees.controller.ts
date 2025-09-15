@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, HttpCode, HttpStatus, Param, Post, Put, Req, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, Req, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
     ApiBadRequestResponse,
@@ -16,12 +16,14 @@ import express from 'express';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { AssignDocumentTypesDto } from '../dto/assign-document-types.dto';
 import { CreateEmployeeDto } from '../dto/create-employee.dto';
+import { EmployeeDocumentsStatusDto } from '../dto/employee-documents-status.dto';
 import { EmployeeResponseDto } from '../dto/employee-response.dto';
 import { UnassignDocumentTypesDto } from '../dto/unassign-document-types.dto';
 import { UpdateEmployeeDto } from '../dto/update-employee.dto';
 import { UploadDocumentResponseDto } from '../dto/upload-document.dto';
 import { AssignDocumentTypesService } from '../services/assign-document-types.service';
 import { CreateEmployeeService } from '../services/create-employee.service';
+import { GetEmployeeDocumentsStatusService } from '../services/get-employee-documents-status.service';
 import { UnassignDocumentTypesService } from '../services/unassign-document-types.service';
 import { UpdateEmployeeService } from '../services/update-employee.service';
 import { UploadDocumentService } from '../services/upload-document.service';
@@ -36,6 +38,7 @@ export class EmployeesController {
     private readonly assignDocs: AssignDocumentTypesService,
     private readonly unassignDocs: UnassignDocumentTypesService,
     private readonly uploadDocument: UploadDocumentService,
+    private readonly getStatus: GetEmployeeDocumentsStatusService,
   ) {}
 
   @Roles('admin')
@@ -176,10 +179,7 @@ export class EmployeesController {
     return await this.unassignDocs.execute(employeeId, dto.documentTypeIds);
   }
 
-
-
-
-    @Roles('admin')
+  @Roles('admin')
   @Post(':id/document-types/:docTypeId/upload')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
@@ -224,4 +224,23 @@ export class EmployeesController {
     };
   }
 
+  @Roles('admin')
+  @Get(':id/documents/status')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    operationId: 'getEmployeeDocumentsStatus',
+    summary: 'Get employee document status',
+    description:
+      'Retrieves the status of all document types linked to a specific employee, showing which have been sent and which are still pending.',
+  })
+  @ApiOkResponse({
+    description: 'Employee document status retrieved successfully',
+    type: EmployeeDocumentsStatusDto,
+  })
+  @ApiNotFoundResponse({ description: 'Employee not found' })
+  async getDocumentsStatus(
+    @Param('id') employeeId: string,
+  ): Promise<EmployeeDocumentsStatusDto> {
+    return this.getStatus.execute(employeeId);
+  }
 }
