@@ -6,3 +6,116 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+//
+// ===== Enums =====
+//
+
+enum DocumentStatus {
+  PENDING
+  SENT
+  APPROVED
+  REJECTED
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  UPLOAD
+  REVIEW
+  LOGIN
+}
+
+//
+// ===== Models =====
+//
+
+model Employee {
+  id                 String             @id @default(uuid())
+  name               String
+  cpf                String             @unique @db.Char(11)
+  registrationNumber String?            @unique
+  email              String?
+  phone              String?
+  birthDate          DateTime?
+  position           String?
+  hiredAt            DateTime
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  isActive           Boolean            @default(true)
+
+  documents          EmployeeDocument[]
+
+  @@index([isActive])
+  @@index([name])
+}
+
+model DocumentType {
+  id                   String             @id @default(uuid())
+  code                 String             @unique       // ex: "CPF", "CTPS", "CNH"
+  name                 String
+  description          String?
+  validityPeriodMonths Int?               // validade padrão (meses), quando aplicável
+  isMandatory          Boolean            @default(true)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  documents            EmployeeDocument[]
+
+  @@index([name])
+}
+
+model EmployeeDocument {
+  id             String         @id @default(uuid())
+  employeeId     String
+  documentTypeId String
+  status         DocumentStatus @default(PENDING)
+  dueDate        DateTime?
+  expirationDate DateTime?                    // validade do doc enviado (ex: CNH/exames)
+  sentAt         DateTime?
+  verifiedAt     DateTime?
+  lastReviewer   String?                       // quem revisou por último
+  notes          String?                       // observações/rejeições/comentários
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  employee       Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  documentType   DocumentType   @relation(fields: [documentTypeId], references: [id], onDelete: Cascade)
+  documents      Document[]                      // histórico de uploads (versionado)
+
+  @@unique([employeeId, documentTypeId])         // 1 vínculo por tipo para cada colaborador
+  @@index([status])
+  @@index([employeeId, status])
+  @@index([documentTypeId, status])
+}
+
+model Document {
+  id                 String           @id @default(uuid())
+  employeeDocumentId String
+  fileName           String
+  mimeType           String
+  storagePath        String
+  checksum           String?            // ex: SHA256 se usar MinIO de verdade
+  version            Int                @default(1) // versionamento por reenvio
+  uploadedAt         DateTime           @default(now())
+  uploadedBy         String
+
+  employeeDocument   EmployeeDocument   @relation(fields: [employeeDocumentId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeDocumentId, version])        // garante histórico coerente
+  @@index([employeeDocumentId])
+}
+
+model AuditLog {
+  id          String      @id @default(uuid())
+  entity      String                      // "Employee" | "Document" | etc
+  entityId    String
+  action      AuditAction
+  performedBy String
+  timestamp   DateTime    @default(now())
+  metadata    Json?
+
+  @@index([entity, entityId])
+  @@index([timestamp])
+}
