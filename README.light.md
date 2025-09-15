@@ -20,6 +20,6 @@ Minimal overview of the project.
 - Swagger (Docs)
 - Jenkins (CI/CD)
 
-![Jenkins Example](./docs/jenkinsexamplo.png)
+![Jenkins Example](./docs/jenkinsexemplo.png)
 
 ![Kibana Example](./docs/kibanaexemplo.png)

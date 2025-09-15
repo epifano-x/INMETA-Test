@@ -245,7 +245,7 @@ networks:
 
 Pipeline automatizado com **Jenkins** para build, testes e deploy.
 
-![Jenkins Example](./docs/jenkinsexamplo.png)
+![Jenkins Example](./docs/jenkinsexemplo.png)
 
 ---
 

@@ -245,7 +245,7 @@ networks:
 
 The project is integrated with Jenkins pipelines for build, test, and deploy automation.
 
-![Jenkins Example](./docs/jenkinsexamplo.png)
+![Jenkins Example](./docs/jenkinsexemplo.png)
 
 ---
 
