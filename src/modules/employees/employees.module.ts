@@ -16,7 +16,7 @@ import { EMPLOYEE_REPOSITORY } from './tokens';
 @Module({
   imports: [
     PrismaModule,
-    StorageModule, // 👈 garante que o STORAGE_TOKEN esteja disponível
+    StorageModule,
   ],
   controllers: [EmployeesController],
   providers: [
