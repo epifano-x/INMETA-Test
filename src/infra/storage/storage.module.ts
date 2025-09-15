@@ -10,12 +10,12 @@ import { IStorage } from './storage.types';
     {
       provide: STORAGE_TOKEN,
       useFactory: (cfg: ConfigService): IStorage => {
-        const driver = cfg.get<'disk' | 's3'>('STORAGE_DRIVER');
-        if (driver !== 'disk') {
-          throw new Error(`Unsupported STORAGE_DRIVER=${driver}`);
+        const driver = cfg.get<'disk' | 's3'>('STORAGE_DRIVER') ?? 'disk';
+        if (driver === 'disk') {
+          const root = cfg.get<string>('STORAGE_DISK_ROOT') || '/data/docs';
+          return new DiskStorage(root);
         }
-        const root = cfg.get<string>('STORAGE_DISK_ROOT') || '/data/docs';
-        return new DiskStorage(root);
+        throw new Error(`Unsupported STORAGE_DRIVER=${driver}`);
       },
       inject: [ConfigService],
     },
