@@ -62,4 +62,34 @@ export class PrismaEmployeeRepository implements IEmployeeRepository {
       throw err;
     }
   }
+
+  async update(id: string, data: Partial<EmployeeProps>): Promise<EmployeeProps | null> {
+    try {
+        const row = await this.prisma.employee.update({
+        where: { id },
+        data,
+        });
+
+      return {
+        id: row.id,
+        name: row.name,
+        cpf: row.cpf,
+        registrationNumber: row.registrationNumber,
+        email: row.email,
+        phone: row.phone,
+        birthDate: row.birthDate,
+        position: row.position,
+        hiredAt: row.hiredAt,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+        isActive: row.isActive,
+      };
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+        return null; // not found
+      }
+      throw err;
+    }
+  }
+
 }
