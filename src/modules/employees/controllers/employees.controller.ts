@@ -11,9 +11,11 @@ import {
     ApiTags,
 } from '@nestjs/swagger';
 import { Roles } from 'src/common/decorators/roles.decorator';
+import { AssignDocumentTypesDto } from '../dto/assign-document-types.dto';
 import { CreateEmployeeDto } from '../dto/create-employee.dto';
 import { EmployeeResponseDto } from '../dto/employee-response.dto';
 import { UpdateEmployeeDto } from '../dto/update-employee.dto';
+import { AssignDocumentTypesService } from '../services/assign-document-types.service';
 import { CreateEmployeeService } from '../services/create-employee.service';
 import { UpdateEmployeeService } from '../services/update-employee.service';
 
@@ -24,6 +26,7 @@ export class EmployeesController {
   constructor(
     private readonly createEmployee: CreateEmployeeService,
     private readonly updateEmployee: UpdateEmployeeService,
+    private readonly assignDocs: AssignDocumentTypesService,
   ) {}
 
   @Roles('admin')
@@ -108,5 +111,40 @@ export class EmployeesController {
       createdAt: updated.createdAt!.toISOString(),
       updatedAt: updated.updatedAt!.toISOString(),
     } as EmployeeResponseDto;
+  }
+
+
+  @Roles('admin')
+  @Post(':id/document-types')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    operationId: 'assignDocumentTypes',
+    summary: 'Assign document types to an employee',
+    description: 'Links one or more document types to an employee. Each document type starts as PENDING.',
+  })
+  @ApiBody({
+    description: 'Document type IDs to assign',
+    type: AssignDocumentTypesDto,
+    examples: {
+      default: {
+        summary: 'Example',
+        value: {
+          documentTypeIds: [
+            '8d4f4d8e-4a4b-4f2a-b8f4-2b0e58bdb1c7',
+            '7e3f3e2a-1d2b-4c3d-9e4f-1234567890ab',
+          ],
+        },
+      },
+    },
+  })
+  @ApiCreatedResponse({ description: 'Documents successfully assigned' })
+  @ApiNotFoundResponse({ description: 'Employee not found' })
+  @ApiConflictResponse({ description: 'One or more document types already assigned' })
+  @ApiBadRequestResponse({ description: 'Invalid input data' })
+  async assign(
+    @Param('id') employeeId: string,
+    @Body() dto: AssignDocumentTypesDto,
+  ) {
+    return await this.assignDocs.execute(employeeId, dto.documentTypeIds);
   }
 }
