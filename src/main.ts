@@ -17,7 +17,7 @@ async function bootstrap() {
 
   app.useGlobalFilters(new AllExceptionsFilter(logs));
 
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true, forbidUnknownValues: false }));
 
   app.useGlobalInterceptors(new RequestLoggerInterceptor(logs));
   
@@ -27,6 +27,7 @@ async function bootstrap() {
       .setDescription('API da INMETA com integração ao Keycloak')
       .setVersion('1.0.0')
       .addTag('health', 'Endpoints for application and Elasticsearch health checks')
+      .addTag('employees', 'Employee registration and documentation management')
       .addServer('api/')
       .addBearerAuth(
         {

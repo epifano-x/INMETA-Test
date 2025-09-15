@@ -10,6 +10,7 @@ import { PrismaModule } from './infra/persistence';
 import { AuthModule } from './modules/auth/auth.module';
 import { JwtAuthGuard } from './modules/auth/jwt-auth.guard';
 import { RolesGuard } from './modules/auth/roles.guard';
+import { EmployeesModule } from './modules/employees/employees.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -35,6 +36,7 @@ import { RolesGuard } from './modules/auth/roles.guard';
     PrismaModule,
     LogsModule,
     AuthModule,
+    EmployeesModule,
   ],
   controllers: [HealthController],
   providers: [
