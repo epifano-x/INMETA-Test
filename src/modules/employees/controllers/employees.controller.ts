@@ -1,25 +1,30 @@
-import { Body, Controller, Delete, HttpCode, HttpStatus, Param, Post, Put } from '@nestjs/common';
+import { Body, Controller, Delete, HttpCode, HttpStatus, Param, Post, Put, Req, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
     ApiBadRequestResponse,
     ApiBearerAuth,
     ApiBody,
     ApiConflictResponse,
+    ApiConsumes,
     ApiCreatedResponse,
     ApiNotFoundResponse,
     ApiOkResponse,
     ApiOperation,
     ApiTags,
 } from '@nestjs/swagger';
+import express from 'express';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { AssignDocumentTypesDto } from '../dto/assign-document-types.dto';
 import { CreateEmployeeDto } from '../dto/create-employee.dto';
 import { EmployeeResponseDto } from '../dto/employee-response.dto';
 import { UnassignDocumentTypesDto } from '../dto/unassign-document-types.dto';
 import { UpdateEmployeeDto } from '../dto/update-employee.dto';
+import { UploadDocumentResponseDto } from '../dto/upload-document.dto';
 import { AssignDocumentTypesService } from '../services/assign-document-types.service';
 import { CreateEmployeeService } from '../services/create-employee.service';
 import { UnassignDocumentTypesService } from '../services/unassign-document-types.service';
 import { UpdateEmployeeService } from '../services/update-employee.service';
+import { UploadDocumentService } from '../services/upload-document.service';
 
 @ApiTags('employees')
 @ApiBearerAuth('access-token')
@@ -30,6 +35,7 @@ export class EmployeesController {
     private readonly updateEmployee: UpdateEmployeeService,
     private readonly assignDocs: AssignDocumentTypesService,
     private readonly unassignDocs: UnassignDocumentTypesService,
+    private readonly uploadDocument: UploadDocumentService,
   ) {}
 
   @Roles('admin')
@@ -168,6 +174,54 @@ export class EmployeesController {
     @Body() dto: UnassignDocumentTypesDto,
   ) {
     return await this.unassignDocs.execute(employeeId, dto.documentTypeIds);
+  }
+
+
+
+
+    @Roles('admin')
+  @Post(':id/document-types/:docTypeId/upload')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    operationId: 'uploadDocument',
+    summary: 'Upload employee document',
+    description:
+      'Uploads a file for a given employee and document type, stores it using configured storage (Disk or MinIO), versions it, and updates status.',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    description: 'Upload file for employee document',
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @ApiCreatedResponse({
+    description: 'Document successfully uploaded',
+    type: UploadDocumentResponseDto,
+  })
+  @ApiNotFoundResponse({ description: 'Employee or document type not found' })
+  @ApiBadRequestResponse({ description: 'Invalid file upload' })
+  @UseInterceptors(FileInterceptor('file'))
+  async upload(
+    @Param('id') employeeId: string,
+    @Param('docTypeId') docTypeId: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: express.Request,
+  ): Promise<UploadDocumentResponseDto> {
+    const user = req.user!;
+    const uploaded = await this.uploadDocument.execute(
+      employeeId,
+      docTypeId,
+      file,
+      user.userId,
+    );
+    return {
+      ...uploaded,
+      uploadedAt: uploaded.uploadedAt.toISOString(),
+    };
   }
 
 }
