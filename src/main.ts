@@ -28,6 +28,7 @@ async function bootstrap() {
       .setVersion('1.0.0')
       .addTag('health', 'Endpoints for application and Elasticsearch health checks')
       .addTag('employees', 'Employee registration and documentation management')
+      .addTag('document-types', 'Document type registration and management')
       .addServer('api/')
       .addBearerAuth(
         {
