@@ -25,7 +25,7 @@ export class PrismaService
       console.log('✅ [PrismaService] Connected to the database');
     } catch (err) {
       console.error('❌ [PrismaService] Error connecting to the bank:', err);
-      throw err; // falha rápida
+      throw err; 
     }
   }
 
@@ -35,7 +35,6 @@ export class PrismaService
         console.log(`⏹️ [PrismaService] ${reason} – closing app...`);
         await app.close();
       } finally {
-        // apenas desconecta o Prisma; não chama process.exit aqui
         await this.$disconnect();
       }
     };

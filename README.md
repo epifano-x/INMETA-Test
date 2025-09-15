@@ -1,27 +1,30 @@
-# INMETA Test – Backend (Node.js + TypeScript)
+# INMETA Docs API
 
-_Read this in other languages: **[Português (Brasil)](README.pt-BR.md)**_
+![INMETA Logo](./docs/inmeta-logo.png)
 
-API for managing employee mandatory documentation. Built for real-world deploys with NestJS, PostgreSQL, Keycloak (AuthN/AuthZ), Elasticsearch + Kibana (logs/observability), and Swagger (docs).
+_Read this in other languages: **[Português (Brasil)](README.pt-BR.md)**| **[Light Version](README.light.md)**_
 
-Note: No secrets in Git. Use `.env` files locally and CI/CD secrets in pipelines. See Environment below.
+API for managing employee mandatory documentation. Built with **NestJS**, **PostgreSQL (Prisma ORM)**, **Keycloak (OIDC Auth)**, **Elasticsearch + Kibana (logs/observability)**, and **Swagger**.
+
+Public documentation (DEV): [https://dev.inmeta.dynax.com.br/docs#/](https://dev.inmeta.dynax.com.br/docs#/)
 
 ---
 
 ## Table of Contents
 - [Overview](#overview)
+- [Functional Specifications](#functional-specifications)
 - [Architecture](#architecture)
 - [Tech Stack](#tech-stack)
 - [Domain Model](#domain-model)
 - [Environment](#environment)
 - [Local Development](#local-development)
 - [Database (Postgres)](#database-postgres)
-- [Security (Keycloak)](#security-keycloak)
-- [Logs & Observability (Elasticsearch/Kibana)](#logs--observability-elasticsearchkibana)
+- [Authentication (Keycloak)](#authentication-keycloak)
+- [Logs & Observability](#logs--observability)
 - [API Docs (Swagger)](#api-docs-swagger)
 - [Run with Docker](#run-with-docker)
 - [Testing](#testing)
-- [Production notes](#production-notes)
+- [Production Notes](#production-notes)
 - [License](#license)
 
 ---
@@ -29,209 +32,223 @@ Note: No secrets in Git. Use `.env` files locally and CI/CD secrets in pipelines
 ## Overview
 
 This service exposes a REST API to:
-- Create/update employees
+- Create and update employees
 - Create document types
 - Link/unlink document types to employees (bulk supported)
-- Submit employee documents (metadata representation only; no file upload required)
+- Upload employee documents (stored via MinIO or Disk, metadata saved in DB)
 - Get an employee’s documentation status (sent vs pending)
-- List all pending documents with pagination + optional filters (employee / document type)
+- List all documents with pagination and filters (employee, document type, status), all in this case to better utilize the endpoint and avoid generating code redundancy
+
+---
+
+## Functional Specifications
+
+Example flow:
+
+- Employee **X** is linked to two document types: **CPF** and **Work Card** → both are pending.  
+- The user uploads **CPF** for employee **X** → only **Work Card** remains pending.
+
+Implemented features:
+- ✅ Employee registration & update  
+- ✅ Document type registration  
+- ✅ Bulk assign/unassign document types to employees  
+- ✅ Document upload with storage integration (Disk or MinIO)  
+- ✅ Employee documentation status endpoint (sent vs pending)  
+- ✅ Paginated and filterable list of documents (employee, type, status)  
+
+---
 
 ## Architecture
 
+The project follows **DDD (Domain-Driven Design)** with a **Clean Architecture** approach:
+
 ```
-apps/api
- ├─ src
- │   ├─ main.ts                 # bootstrap + global pipes/filters + logging
- │   ├─ app.module.ts
- │   ├─ modules/
- │   │   ├─ employees/
- │   │   ├─ document-types/
- │   │   ├─ documents/
- │   │   └─ health/
- │   ├─ common/
- │   │   ├─ auth/ (Keycloak guards, roles, scopes)
- │   │   ├─ logging/ (pino + transport to Elasticsearch)
- │   │   └─ dto/
- │   └─ infra/
- │       ├─ prisma/ (schema + migrations)
- │       └─ config/
- ├─ prisma/ (schema.prisma, migrations)
- └─ test/
+src/
+ ├─ domain/              # entities, events, services (business rules)
+ ├─ infra/               # persistence (Prisma), storage, config
+ ├─ modules/             # NestJS feature modules
+ │   ├─ employees/       # controllers, dto, services
+ │   ├─ document-types/
+ │   ├─ health/
+ │   └─ auth/
+ ├─ common/              # decorators, interceptors, filters
+ └─ main.ts              # bootstrap, global filters/pipes
 ```
 
-- Framework: NestJS (Express adapter) + Class-Validator
-- Auth: Keycloak (OpenID Connect); Bearer JWT on all protected routes
-- DB: PostgreSQL via Prisma
-- Logs: Pino → Elasticsearch (indexed), view in Kibana
-- Docs: Swagger at `/docs`
-- Packaging: Docker; reverse-proxy via Traefik (provided in infra stack)
+**Justification of choices:**
+- **NestJS**: modular, scalable, aligned with Clean Arch.  
+- **Prisma + PostgreSQL**: type-safe ORM, migrations, developer-friendly.  
+- **Keycloak**: enterprise-grade IAM with roles & JWT.  
+- **Elasticsearch + Kibana**: full observability and centralized logs.  
+- **Swagger**: discoverable API with schemas & examples.  
+- **Docker + Traefik**: easy containerized deployment with HTTPS routing.  
+
+---
 
 ## Tech Stack
 
-- Node.js 20 / TypeScript
-- NestJS
-- Prisma ORM (PostgreSQL)
-- Keycloak (OIDC)
-- Pino + pino-elasticsearch (logs) / alternatively Elastic APM
-- Swagger (OpenAPI 3)
-- Docker / docker-compose
-- Traefik for TLS and routing
+- Node.js 20 / TypeScript  
+- NestJS  
+- Prisma ORM (PostgreSQL)  
+- Keycloak (OIDC, JWT Bearer)  
+- MinIO or Disk for file storage  
+- Elasticsearch + Kibana  
+- Swagger (OpenAPI 3)  
+- Docker & docker-compose  
+- Traefik (TLS & reverse proxy)  
+
+---
 
 ## Domain Model
 
-Suggested entities (you may extend/rename as needed):
-
-- Employee
-  - id, name, cpf, hiredAt
-- DocumentType
-  - id, name
-- Document
-  - id, name, status (PENDING | SENT)
-  - employeeId, documentTypeId
-  - submittedAt
+- **Employee** → id, name, cpf, hiredAt, registrationNumber, etc.  
+- **DocumentType** → id, name, description, isRequired  
+- **EmployeeDocument** → link table (employeeId, documentTypeId, status, sentAt)  
+- **Document** → id, employeeDocumentId, filename, mimeType, storagePath, checksum, version, uploadedAt  
 
 Business rules:
-- Link/unlink multiple document types at once to an employee
-- Submitting a document moves its status to SENT
-- Status endpoint returns both sent and pending per employee
-- Pending list is pageable and filterable
+- Employee ↔ DocumentType = many-to-many with status (PENDING or SENT).  
+- Upload creates new `Document` version, marks status = SENT.  
+- Status endpoint aggregates sent & pending per employee.  
+- Pending list supports **pagination, filtering by employee, document type, status**.  
+
+---
 
 ## Environment
 
-Create your own `.env` based on the template below and never commit secrets. Keep `.env` ignored by Git.
+Example `.env.example`:
 
-`.env.example` (placeholders only)
 ```dotenv
 # Runtime
+APP_NAME=inmeta-docs-api
 NODE_ENV=development
 PORT=3000
 
-# Postgres
-DB_HOST=postgres-dev
-DB_PORT=5432
-DB_NAME=inmeta_docs
-DB_USER=__FILL_ME__
-DB_PASSWORD=__FILL_ME__
-
-# Keycloak (Auth)
-KEYCLOAK_URL=https://keycloak.dynax.com.br
-KEYCLOAK_REALM=inmeta
-KEYCLOAK_CLIENT_ID=api-docs
-KEYCLOAK_CLIENT_SECRET=__FILL_ME__
-
-# Elasticsearch (Logs)
-ELASTIC_NODE=http://elasticsearch-dev:9200
-ELASTIC_USERNAME=__FILL_ME__
-ELASTIC_PASSWORD=__FILL_ME__
-ELASTIC_INDEX_PREFIX=api-docs
-
-# Swagger
+# Logging
+LOG_LEVEL=debug
 SWAGGER_ENABLED=true
-SWAGGER_TITLE=INMETA Docs API
-SWAGGER_PATH=/docs
+
+# Database
+DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/inmeta?schema=public
+
+# Keycloak
+KEYCLOAK_AUTH_SERVER_URL=https://keycloak.dynax.com.br/realms/INMETA
+KEYCLOAK_REALM=INMETA
+KEYCLOAK_CLIENT_ID=inmeta-api
+KEYCLOAK_SECRET=__FILL_ME__
+
+# Elasticsearch
+ELASTICSEARCH_NODE=http://elasticsearch-dev:9200
+ELASTICSEARCH_USERNAME=__FILL_ME__
+ELASTICSEARCH_PASSWORD=__FILL_ME__
+ELASTICSEARCH_TLS_REJECT_UNAUTHORIZED=false
+ELASTICSEARCH_LOGS_INDEX=inmeta
+
+# Storage
+STORAGE_DRIVER=disk
+STORAGE_DISK_ROOT=/data/docs
+UPLOAD_MAX_MB=30
+ALLOWED_MIME=application/pdf,image/png,image/jpeg
 ```
 
-Add to `.gitignore`:
-```
-.env
-.env.*
-!.env.example
-```
+---
 
 ## Local Development
 
 ```bash
-# 1) Install deps
 npm ci
-
-# 2) Generate Prisma client
 npx prisma generate
-
-# 3) Create DB schema
 npx prisma migrate dev --name init
-
-# 4) Run
 npm run start:dev
 ```
 
-Health:
+Health check:
 ```
-GET http://localhost:3000/health
+GET http://localhost:3000/api/health
 ```
+
+---
 
 ## Database (Postgres)
 
-- The project expects a Postgres reachable via the variables in `.env`.
-- For your existing containerized Postgres (DEV), just create a new database:
-  ```sql
-  CREATE DATABASE inmeta_docs WITH ENCODING 'UTF8';
-  ```
-- Apply Prisma migrations:
-  ```bash
-  npx prisma migrate dev
-  ```
-- Explore schema:
-  ```bash
-  npx prisma studio
-  ```
-
-## Security (Keycloak)
-
-The API uses Bearer tokens from Keycloak.
-
-Obtain a token (Password flow example):
-```bash
-curl -X POST "$KEYCLOAK_URL/realms/$KEYCLOAK_REALM/protocol/openid-connect/token"   -H "Content-Type: application/x-www-form-urlencoded"   -d "grant_type=password&client_id=$KEYCLOAK_CLIENT_ID&client_secret=$KEYCLOAK_CLIENT_SECRET&username=<user>&password=<pass>"
+```sql
+CREATE DATABASE inmeta
+  WITH OWNER = dinax
+  ENCODING = 'UTF8'
+  CONNECTION LIMIT = -1;
 ```
 
-Send requests with the token:
+---
+
+## Authentication (Keycloak)
+
+Request token (Password grant example):
+
 ```bash
-curl -H "Authorization: Bearer <access_token>" http://localhost:3000/employees
+curl -X POST "https://keycloak.dynax.com.br/realms/INMETA/protocol/openid-connect/token"   -H "Content-Type: application/x-www-form-urlencoded"   -d "client_id=inmeta-api"   -d "client_secret=__FILL_ME__"   -d "grant_type=password"   -d "username=<user>"   -d "password=<password>"
 ```
 
-Configure role checks (scopes) per route using Nest guards and Keycloak realm/client roles.
+**⚠️ To obtain test credentials, contact the maintainer.**
 
-## Logs & Observability (Elasticsearch/Kibana)
+Use token in API calls:
+```bash
+curl -H "Authorization: Bearer <access_token>" https://dev.inmeta.dynax.com.br/api/employees
+```
 
-- Logs are shipped via pino with an elasticsearch transport.
-- Configure via ELASTIC_* env vars.
-- In Kibana (DEV): https://dev.kibana.dynax.com.br
-  In Kibana (PROD): https://kibana.dynax.com.br
-- Suggested index pattern: ${ELASTIC_INDEX_PREFIX}-*
+---
 
-Tip: add request ID correlation and include user/realm claims into log context.
+## Logs & Observability
+
+- Logs shipped to Elasticsearch.  
+- Visualize in Kibana dashboards.  
+- Index prefix configured via `.env`.  
+
+![Kibana Example](./docs/kibana-example.png)
+
+---
 
 ## API Docs (Swagger)
 
-- Swagger UI enabled when SWAGGER_ENABLED=true
-- Default path: http://localhost:3000/docs (proxied publicly by Traefik in DEV)
-- OpenAPI JSON: /docs-json
+- Swagger enabled at: `/docs`  
+- DEV public: [https://dev.inmeta.dynax.com.br/docs#/](https://dev.inmeta.dynax.com.br/docs#/)  
+
+---
 
 ## Run with Docker
 
-Example minimal compose for the API (DEV) assuming you already run Traefik/Keycloak/Elastic separately:
+Minimal compose:
 
 ```yaml
 version: "3.9"
 services:
-  api-dev:
+  api:
     build: .
-    env_file:
-      - .env
+    env_file: .env
     ports:
       - "3000:3000"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.api-dev.rule=Host(`api.dev.dynax.com.br`)"
-      - "traefik.http.routers.api-dev.entrypoints=websecure"
-      - "traefik.http.routers.api-dev.tls=true"
-      - "traefik.http.services.api-dev.loadbalancer.server.port=3000"
+      - "traefik.http.routers.inmeta-api.rule=Host(`dev.inmeta.dynax.com.br`)"
+      - "traefik.http.routers.inmeta-api.entrypoints=websecure"
+      - "traefik.http.routers.inmeta-api.tls=true"
+      - "traefik.http.services.inmeta-api.loadbalancer.server.port=3000"
     networks:
       - web
 networks:
   web:
     external: true
 ```
+
+---
+
+## CI/CD (Jenkins)
+
+The project is integrated with Jenkins pipelines for build, test, and deploy automation.
+
+![Jenkins Example](./docs/jenkins-example.png)
+
+---
+
 
 ## Testing
 
@@ -241,23 +258,18 @@ npm run test:e2e
 npm run lint
 ```
 
-## Production notes
+---
 
-- Use distinct realms/clients/secrets in Keycloak; least-privilege roles.
-- Send logs to a PROD Elasticsearch with a distinct index prefix.
-- Rotate secrets regularly; use a secret manager (Vault/AWS/GCP/etc.).
-- Use health/readiness probes behind Traefik.
-- Enable Prisma connection pooling (e.g., pgbouncer) for scale.
+## Production Notes
+
+- Use separate Keycloak clients per environment.  
+- Logs to PROD Elasticsearch with unique index prefix.  
+- Secrets must be rotated and stored in secret managers.  
+- Enable readiness/liveness probes.  
+- Use connection poolers (e.g. PgBouncer).  
+
+---
 
 ## License
 
 MIT
-
-
-```
-CREATE DATABASE inmeta
-    WITH OWNER = dinax
-    ENCODING = 'UTF8'
-    CONNECTION LIMIT = -1;
-
-```

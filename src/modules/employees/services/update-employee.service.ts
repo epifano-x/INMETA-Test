@@ -18,7 +18,7 @@ export class UpdateEmployeeService {
   ) {}
 
   async execute(id: string, input: any) {
-    // sanitize cpf if provided
+
     if (input.cpf) {
       const cpfDigits = EmployeeEntity.sanitizeCpf(input.cpf);
       try {

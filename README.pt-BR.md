@@ -1,25 +1,28 @@
-# Teste INMETA – Back-End (Node.js + TypeScript)
+# INMETA Docs API
 
-_Leia em outros idiomas: **[English](README.md)**_
+![INMETA Logo](./docs/inmeta-logo.png)
 
-API para gerenciar a documentação obrigatória de colaboradores. Projeto preparado para deploy real com NestJS, PostgreSQL, Keycloak (autenticação/autorização), Elasticsearch + Kibana (logs/observabilidade) e Swagger (documentação).
+_Leia em outro idioma: **[English](README.md)**| **[Light Version](README.light.md)**_
 
-Observação: não versionamos segredos no Git. Use `.env` localmente e segredos no pipeline. Veja Ambiente abaixo.
+API para gerenciamento da documentação obrigatória de colaboradores. Desenvolvida com **NestJS**, **PostgreSQL (Prisma ORM)**, **Keycloak (OIDC Auth)**, **Elasticsearch + Kibana (observabilidade)** e **Swagger**.
+
+Documentação pública (DEV): [https://dev.inmeta.dynax.com.br/docs#/](https://dev.inmeta.dynax.com.br/docs#/)
 
 ---
 
 ## Sumário
 - [Visão Geral](#visão-geral)
+- [Especificações Funcionais](#especificações-funcionais)
 - [Arquitetura](#arquitetura)
 - [Tecnologias](#tecnologias)
 - [Modelo de Domínio](#modelo-de-domínio)
 - [Ambiente](#ambiente)
 - [Desenvolvimento Local](#desenvolvimento-local)
 - [Banco de Dados (Postgres)](#banco-de-dados-postgres)
-- [Segurança (Keycloak)](#segurança-keycloak)
-- [Logs & Observabilidade (Elasticsearch/Kibana)](#logs--observabilidade-elasticsearchkibana)
+- [Autenticação (Keycloak)](#autenticação-keycloak)
+- [Logs & Observabilidade](#logs--observabilidade)
 - [Documentação da API (Swagger)](#documentação-da-api-swagger)
-- [Executar com Docker](#executar-com-docker)
+- [Execução com Docker](#execução-com-docker)
 - [Testes](#testes)
 - [Notas de Produção](#notas-de-produção)
 - [Licença](#licença)
@@ -28,210 +31,222 @@ Observação: não versionamos segredos no Git. Use `.env` localmente e segredos
 
 ## Visão Geral
 
-A API expõe endpoints para:
-- Criar/atualizar colaboradores
-- Cadastrar tipos de documento
-- Vincular/desvincular tipos de documento a colaboradores (em lote)
-- Enviar documentos (apenas metadados; não é necessário upload real)
-- Obter o status de toda a documentação de um colaborador (enviados vs pendentes)
-- Listar documentos pendentes com paginação e filtros (colaborador / tipo)
+A API expõe endpoints REST para:
+- Cadastrar e atualizar colaboradores
+- Cadastrar tipos de documentos
+- Vincular/desvincular tipos de documentos a colaboradores (suporta múltiplos)
+- Enviar documentos de colaboradores (armazenados via MinIO ou Disk, metadados no banco)
+- Consultar o status da documentação de um colaborador (enviado vs pendente)
+- Listar todos os documentos com paginação e filtros (colaborador, tipo de documento, status), todos no caso para melhor aproveitar o end point evitando gerar redundancia de codigo
+
+---
+
+## Especificações Funcionais
+
+Exemplo de fluxo:
+
+- O colaborador **X** está vinculado aos tipos de documentos: **CPF** e **Carteira de Trabalho** → ambos pendentes.  
+- O usuário envia o **CPF** → apenas **Carteira de Trabalho** permanece pendente.
+
+Funcionalidades implementadas:
+- ✅ Cadastro e atualização de colaboradores  
+- ✅ Cadastro de tipos de documentos  
+- ✅ Vinculação e desvinculação em massa de tipos de documentos  
+- ✅ Upload de documentos com integração ao storage (Disk ou MinIO)  
+- ✅ Endpoint de status da documentação de colaboradores  
+- ✅ Listagem paginada e filtrável (colaborador, tipo, status)  
+
+---
 
 ## Arquitetura
 
+O projeto segue **DDD (Domain-Driven Design)** com **Clean Architecture**:
+
 ```
-apps/api
- ├─ src
- │   ├─ main.ts                 # bootstrap + pipes/filtros globais + logging
- │   ├─ app.module.ts
- │   ├─ modules/
- │   │   ├─ employees/
- │   │   ├─ document-types/
- │   │   ├─ documents/
- │   │   └─ health/
- │   ├─ common/
- │   │   ├─ auth/ (guards do Keycloak, roles, scopes)
- │   │   ├─ logging/ (pino + transporte para Elasticsearch)
- │   │   └─ dto/
- │   └─ infra/
- │       ├─ prisma/ (schema + migrations)
- │       └─ config/
- ├─ prisma/ (schema.prisma, migrations)
- └─ test/
+src/
+ ├─ domain/              # entidades, eventos, serviços (regras de negócio)
+ ├─ infra/               # persistência (Prisma), storage, config
+ ├─ modules/             # módulos do NestJS
+ │   ├─ employees/       # controllers, dto, services
+ │   ├─ document-types/
+ │   ├─ health/
+ │   └─ auth/
+ ├─ common/              # decorators, interceptors, filters
+ └─ main.ts              # bootstrap, filtros/pipes globais
 ```
 
-- Framework: NestJS (Express) + Class-Validator
-- Auth: Keycloak (OpenID Connect); JWT Bearer nas rotas protegidas
-- DB: PostgreSQL via Prisma
-- Logs: Pino → Elasticsearch (indexados), visualização no Kibana
-- Docs: Swagger em `/docs`
-- Empacotamento: Docker; proxy reverso com Traefik
+**Justificativas técnicas:**
+- **NestJS**: modular, escalável e alinhado com Clean Arch.  
+- **Prisma + PostgreSQL**: ORM type-safe, migrações, produtividade.  
+- **Keycloak**: IAM robusto com suporte a papéis e JWT.  
+- **Elasticsearch + Kibana**: observabilidade completa e centralizada.  
+- **Swagger**: documentação amigável e interativa.  
+- **Docker + Traefik**: facilidade no deploy com HTTPS roteado.  
+
+---
 
 ## Tecnologias
 
-- Node.js 20 / TypeScript
-- NestJS
-- Prisma ORM (PostgreSQL)
-- Keycloak (OIDC)
-- Pino + pino-elasticsearch (logs) / alternativa Elastic APM
-- Swagger (OpenAPI 3)
-- Docker / docker-compose
-- Traefik (TLS/roteamento)
+- Node.js 20 / TypeScript  
+- NestJS  
+- Prisma ORM (PostgreSQL)  
+- Keycloak (OIDC, JWT Bearer)  
+- MinIO ou Disk para storage  
+- Elasticsearch + Kibana  
+- Swagger (OpenAPI 3)  
+- Docker & docker-compose  
+- Traefik (TLS & proxy reverso)  
+
+---
 
 ## Modelo de Domínio
 
-Entidades sugeridas (adapte conforme necessário):
+- **Employee** → id, name, cpf, hiredAt, registrationNumber, etc.  
+- **DocumentType** → id, name, description, isRequired  
+- **EmployeeDocument** → tabela de vínculo (employeeId, documentTypeId, status, sentAt)  
+- **Document** → id, employeeDocumentId, filename, mimeType, storagePath, checksum, version, uploadedAt  
 
-- Employee
-  - id, name, cpf, hiredAt
-- DocumentType
-  - id, name
-- Document
-  - id, name, status (PENDING | SENT)
-  - employeeId, documentTypeId
-  - submittedAt
+Regras de negócio:
+- Employee ↔ DocumentType = muitos-para-muitos com status (PENDING ou SENT).  
+- Upload gera nova versão em `Document` e atualiza status = SENT.  
+- Endpoint de status retorna documentos enviados e pendentes por colaborador.  
+- Listagem suporta **paginação, filtro por colaborador, tipo e status**.  
 
-Regras:
-- Vincular/desvincular múltiplos tipos de uma vez
-- Enviar documento altera status para SENT
-- Endpoint de status retorna enviados e pendentes
-- Lista de pendentes com paginação e filtros
+---
 
 ## Ambiente
 
-Crie seu `.env` a partir do template e não faça commit de segredos. Mantenha `.env` ignorado pelo Git.
+Exemplo de `.env.example`:
 
-`.env.example` (apenas placeholders)
 ```dotenv
 # Runtime
+APP_NAME=inmeta-docs-api
 NODE_ENV=development
 PORT=3000
 
-# Postgres
-DB_HOST=postgres-dev
-DB_PORT=5432
-DB_NAME=inmeta_docs
-DB_USER=__PREENCHA__
-DB_PASSWORD=__PREENCHA__
-
-# Keycloak (Auth)
-KEYCLOAK_URL=https://keycloak.dynax.com.br
-KEYCLOAK_REALM=inmeta
-KEYCLOAK_CLIENT_ID=api-docs
-KEYCLOAK_CLIENT_SECRET=__PREENCHA__
-
-# Elasticsearch (Logs)
-ELASTIC_NODE=http://elasticsearch-dev:9200
-ELASTIC_USERNAME=__PREENCHA__
-ELASTIC_PASSWORD=__PREENCHA__
-ELASTIC_INDEX_PREFIX=api-docs
-
-# Swagger
+# Logging
+LOG_LEVEL=debug
 SWAGGER_ENABLED=true
-SWAGGER_TITLE=INMETA Docs API
-SWAGGER_PATH=/docs
+
+# Database
+DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/inmeta?schema=public
+
+# Keycloak
+KEYCLOAK_AUTH_SERVER_URL=https://keycloak.dynax.com.br/realms/INMETA
+KEYCLOAK_REALM=INMETA
+KEYCLOAK_CLIENT_ID=inmeta-api
+KEYCLOAK_SECRET=__FILL_ME__
+
+# Elasticsearch
+ELASTICSEARCH_NODE=http://elasticsearch-dev:9200
+ELASTICSEARCH_USERNAME=__FILL_ME__
+ELASTICSEARCH_PASSWORD=__FILL_ME__
+ELASTICSEARCH_TLS_REJECT_UNAUTHORIZED=false
+ELASTICSEARCH_LOGS_INDEX=inmeta
+
+# Storage
+STORAGE_DRIVER=disk
+STORAGE_DISK_ROOT=/data/docs
+UPLOAD_MAX_MB=30
+ALLOWED_MIME=application/pdf,image/png,image/jpeg
 ```
 
-Adicionar no `.gitignore`:
-```
-.env
-.env.*
-!.env.example
-```
+---
 
 ## Desenvolvimento Local
 
 ```bash
-# 1) Instalar dependências
 npm ci
-
-# 2) Gerar client do Prisma
 npx prisma generate
-
-# 3) Criar schema no banco
 npx prisma migrate dev --name init
-
-# 4) Rodar
 npm run start:dev
 ```
 
-Health:
+Health check:
 ```
-GET http://localhost:3000/health
+GET http://localhost:3000/api/health
 ```
+
+---
 
 ## Banco de Dados (Postgres)
 
-- A aplicação lê as variáveis do `.env` para conectar.
-- No seu Postgres em contêiner (DEV), crie um banco novo:
-  ```sql
-  CREATE DATABASE inmeta_docs WITH ENCODING 'UTF8';
-  ```
-- Aplique as migrations do Prisma:
-  ```bash
-  npx prisma migrate dev
-  ```
-- Explorar schema:
-  ```bash
-  npx prisma studio
-  ```
-
-## Segurança (Keycloak)
-
-A API usa tokens Bearer do Keycloak.
-
-Obter token (exemplo fluxo de senha):
-```bash
-curl -X POST "$KEYCLOAK_URL/realms/$KEYCLOAK_REALM/protocol/openid-connect/token"   -H "Content-Type: application/x-www-form-urlencoded"   -d "grant_type=password&client_id=$KEYCLOAK_CLIENT_ID&client_secret=$KEYCLOAK_CLIENT_SECRET&username=<usuario>&password=<senha>"
+```sql
+CREATE DATABASE inmeta
+  WITH OWNER = dinax
+  ENCODING = 'UTF8'
+  CONNECTION LIMIT = -1;
 ```
 
-Chamar a API com token:
+---
+
+## Autenticação (Keycloak)
+
+Exemplo para obter token (Password grant):
+
 ```bash
-curl -H "Authorization: Bearer <access_token>" http://localhost:3000/employees
+curl -X POST "https://keycloak.dynax.com.br/realms/INMETA/protocol/openid-connect/token"   -H "Content-Type: application/x-www-form-urlencoded"   -d "client_id=inmeta-api"   -d "client_secret=__FILL_ME__"   -d "grant_type=password"   -d "username=<usuario>"   -d "password=<senha>"
 ```
 
-Roles e escopos são validados por guards do NestJS.
+**⚠️ Para obter credenciais de teste, entre em contato com o responsável.**
 
-## Logs & Observabilidade (Elasticsearch/Kibana)
+Uso do token:
+```bash
+curl -H "Authorization: Bearer <access_token>" https://dev.inmeta.dynax.com.br/api/employees
+```
 
-- Logs via pino com transporte para Elasticsearch.
-- Configure via variáveis ELASTIC_*.
-- Kibana DEV: https://dev.kibana.dynax.com.br
-  Kibana PROD: https://kibana.dynax.com.br
-- Padrão de índice sugerido: ${ELASTIC_INDEX_PREFIX}-*
+---
 
-Dica: inclua um correlation id e claims do usuário no contexto dos logs.
+## Logs & Observabilidade
+
+- Logs enviados ao Elasticsearch.  
+- Visualização no Kibana.  
+- Prefixo configurável via `.env`.  
+
+![Kibana Example](./docs/kibana-example.png)
+---
 
 ## Documentação da API (Swagger)
 
-- Ativado quando SWAGGER_ENABLED=true
-- UI: http://localhost:3000/docs
-- OpenAPI JSON: /docs-json
+- Swagger em `/docs`  
+- DEV público: [https://dev.inmeta.dynax.com.br/docs#/](https://dev.inmeta.dynax.com.br/docs#/)  
 
-## Executar com Docker
+---
 
-Compose mínimo para a API (DEV), assumindo Traefik/Keycloak/Elastic externos:
+## Execução com Docker
+
+Exemplo mínimo de `docker-compose`:
 
 ```yaml
 version: "3.9"
 services:
-  api-dev:
+  api:
     build: .
-    env_file:
-      - .env
+    env_file: .env
     ports:
       - "3000:3000"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.api-dev.rule=Host(`api.dev.dynax.com.br`)"
-      - "traefik.http.routers.api-dev.entrypoints=websecure"
-      - "traefik.http.routers.api-dev.tls=true"
-      - "traefik.http.services.api-dev.loadbalancer.server.port=3000"
+      - "traefik.http.routers.inmeta-api.rule=Host(`dev.inmeta.dynax.com.br`)"
+      - "traefik.http.routers.inmeta-api.entrypoints=websecure"
+      - "traefik.http.routers.inmeta-api.tls=true"
+      - "traefik.http.services.inmeta-api.loadbalancer.server.port=3000"
     networks:
       - web
 networks:
   web:
     external: true
 ```
+
+---
+
+## CI/CD (Jenkins)
+
+Pipeline automatizado com **Jenkins** para build, testes e deploy.
+
+![Exemplo Jenkins](./docs/jenkins-example.png)
+
+---
 
 ## Testes
 
@@ -241,13 +256,17 @@ npm run test:e2e
 npm run lint
 ```
 
+---
+
 ## Notas de Produção
 
-- Realms/clients/secrets distintos no Keycloak; least-privilege sempre.
-- Logs em ES de PROD com prefixo de índice diferente do DEV.
-- Rotacione segredos regularmente; use cofre de segredos.
-- Health/readiness probes atrás do Traefik.
-- Pooling de conexões do Prisma (ex.: pgbouncer) para escala.
+- Clientes distintos no Keycloak por ambiente.  
+- Logs em Elasticsearch PROD com prefixo único.  
+- Segredos armazenados em secret managers.  
+- Probes de readiness/liveness habilitados.  
+- Uso de poolers (PgBouncer).  
+
+---
 
 ## Licença
 

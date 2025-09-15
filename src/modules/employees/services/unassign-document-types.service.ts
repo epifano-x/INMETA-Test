@@ -7,7 +7,7 @@ export class UnassignDocumentTypesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async execute(employeeId: string, documentTypeIds: string[]): Promise<EmployeeDocument[]> {
-    // Verifica se o employee existe
+
     const employee = await this.prisma.employee.findUnique({ where: { id: employeeId } });
     if (!employee) throw new NotFoundException('Employee not found');
 

@@ -7,6 +7,7 @@ import { StorageModule } from 'src/infra/storage/storage.module';
 import { PrismaEmployeeRepository } from '../../infra/persistence/employees.prisma.repository';
 import { AssignDocumentTypesService } from './services/assign-document-types.service';
 import { GetEmployeeDocumentsStatusService } from './services/get-employee-documents-status.service';
+import { ListEmployeeDocumentsService } from './services/list-employee-documents.service';
 import { UnassignDocumentTypesService } from './services/unassign-document-types.service';
 import { UpdateEmployeeService } from './services/update-employee.service';
 import { UploadDocumentService } from './services/upload-document.service';
@@ -25,6 +26,7 @@ import { EMPLOYEE_REPOSITORY } from './tokens';
     UnassignDocumentTypesService,
     UploadDocumentService,
     GetEmployeeDocumentsStatusService,
+    ListEmployeeDocumentsService,
     { provide: EMPLOYEE_REPOSITORY, useClass: PrismaEmployeeRepository },
   ],
 })

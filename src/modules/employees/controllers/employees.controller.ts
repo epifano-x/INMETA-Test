@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, Req, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, Query, Req, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
     ApiBadRequestResponse,
@@ -16,14 +16,17 @@ import express from 'express';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { AssignDocumentTypesDto } from '../dto/assign-document-types.dto';
 import { CreateEmployeeDto } from '../dto/create-employee.dto';
+import { EmployeeDocumentsQueryDto } from '../dto/employee-documents-query.dto';
 import { EmployeeDocumentsStatusDto } from '../dto/employee-documents-status.dto';
 import { EmployeeResponseDto } from '../dto/employee-response.dto';
+import { PaginatedEmployeeDocumentsDto } from '../dto/paginated-employee-documents.dto';
 import { UnassignDocumentTypesDto } from '../dto/unassign-document-types.dto';
 import { UpdateEmployeeDto } from '../dto/update-employee.dto';
 import { UploadDocumentResponseDto } from '../dto/upload-document.dto';
 import { AssignDocumentTypesService } from '../services/assign-document-types.service';
 import { CreateEmployeeService } from '../services/create-employee.service';
 import { GetEmployeeDocumentsStatusService } from '../services/get-employee-documents-status.service';
+import { ListEmployeeDocumentsService } from '../services/list-employee-documents.service';
 import { UnassignDocumentTypesService } from '../services/unassign-document-types.service';
 import { UpdateEmployeeService } from '../services/update-employee.service';
 import { UploadDocumentService } from '../services/upload-document.service';
@@ -39,6 +42,7 @@ export class EmployeesController {
     private readonly unassignDocs: UnassignDocumentTypesService,
     private readonly uploadDocument: UploadDocumentService,
     private readonly getStatus: GetEmployeeDocumentsStatusService,
+    private readonly listPendingDocs: ListEmployeeDocumentsService,
   ) {}
 
   @Roles('admin')
@@ -242,5 +246,24 @@ export class EmployeesController {
     @Param('id') employeeId: string,
   ): Promise<EmployeeDocumentsStatusDto> {
     return this.getStatus.execute(employeeId);
+  }
+
+  @Roles('admin')
+  @Get('documents')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    operationId: 'listEmployeeDocuments',
+    summary: 'List employee documents',
+    description:
+      'Returns all employee documents. Supports pagination, filters (employeeId, documentTypeId, status, search) and ordering.',
+  })
+  @ApiOkResponse({
+    description: 'Paginated list of employee documents',
+    type: PaginatedEmployeeDocumentsDto,
+  })
+  async listDocuments(
+    @Query() query: EmployeeDocumentsQueryDto,
+  ): Promise<PaginatedEmployeeDocumentsDto> {
+    return this.listPendingDocs.execute(query);
   }
 }
